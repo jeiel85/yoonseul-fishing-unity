@@ -73,8 +73,11 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
         **오프라인 컴파일 검증 통과**(UnityEngine 스텁 대상 `dotnet build`,
         LangVersion 9.0, 0 errors) — 단, 에디터 실 컴파일·플레이 검증은 Unity
         설치 후로 남음.
-  - [ ] **EditMode 유닛테스트**: 확률 가중치(`ComputeSpeciesWeight`)·레벨업 경계·
-        퀘스트 클레임 조건 검증. *(Test Framework asmdef 필요 → 에디터에서 실행)*
+  - [x] **EditMode 유닛테스트**: asmdef 구성(게임 `YoonseulFishing` + 테스트
+        `YoonseulFishing.EditModeTests`) + 테스트 3종 — 확률 가중치
+        (`ComputeSpeciesWeight`)·XP/레벨 경계(`ApplyXp`)·퀘스트/업적/도감 클레임
+        조건·미끼 상점. 테스트 위해 `AddXp` 순수 계산을 `ApplyXp`(static)로 추출.
+        **에디터 Test Runner(EditMode)에서 Run → 통과 확인 단계만 남음.**
 - [ ] **Phase 2 — 저장**: `SaveService` (JSON, persistentDataPath). 잡은
       물고기 + 진행도 직렬화/역직렬화.
 - [ ] **Phase 3 — 오디오**: `ProceduralAudio` — 펜타토닉 벨/바람/물/빗/벌레

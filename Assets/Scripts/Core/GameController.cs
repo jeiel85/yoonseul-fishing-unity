@@ -92,7 +92,10 @@ namespace YoonseulFishing.Core
         //  Progression
         // ---------------------------------------------------------------------
 
-        public int GetXpNeeded(int level) => level * 100;
+        /// <summary>XP required to clear a given level. Static + pure for testability.</summary>
+        public static int XpNeededForLevel(int level) => level * 100;
+
+        public int GetXpNeeded(int level) => XpNeededForLevel(level);
 
         public int GetUpgradeCost() => _state.RodLevel.Value * 150;
 
@@ -141,28 +144,38 @@ namespace YoonseulFishing.Core
             _save.Save();
         }
 
-        private void AddXp(int amount)
+        /// <summary>
+        /// Pure XP→level resolution (extracted for testability): adds <paramref name="amount"/>,
+        /// then repeatedly subtracts the per-level requirement (<see cref="XpNeededForLevel"/>),
+        /// rolling the level up. Returns the resulting level, carried-over XP, and whether any
+        /// level-up occurred. No state, no side effects.
+        /// </summary>
+        public static (int level, int xp, bool leveledUp) ApplyXp(int level, int xp, int amount)
         {
-            int currentXp = _state.FishingXp.Value + amount;
-            int currentLevel = _state.FishingLevel.Value;
+            int newXp = xp + amount;
+            int newLevel = level;
             bool leveledUp = false;
-
-            while (currentXp >= GetXpNeeded(currentLevel))
+            while (newXp >= XpNeededForLevel(newLevel))
             {
-                currentXp -= GetXpNeeded(currentLevel);
-                currentLevel++;
+                newXp -= XpNeededForLevel(newLevel);
+                newLevel++;
                 leveledUp = true;
             }
+            return (newLevel, newXp, leveledUp);
+        }
 
-            _state.FishingXp.Value = currentXp;
-            _state.FishingLevel.Value = currentLevel;
+        private void AddXp(int amount)
+        {
+            var (level, xp, leveledUp) = ApplyXp(_state.FishingLevel.Value, _state.FishingXp.Value, amount);
+            _state.FishingXp.Value = xp;
+            _state.FishingLevel.Value = level;
             _save.Save();
 
             if (leveledUp)
             {
                 _ = PlayChimeSequenceAsync(_lifetimeCts.Token,
                     (0, 523.25f, 0.15f), (120, 659.25f, 0.15f), (120, 783.99f, 0.15f), (120, 1046.50f, 0.30f));
-                _state.ShowLevelUpDialog.Value = currentLevel;
+                _state.ShowLevelUpDialog.Value = level;
             }
         }
 
@@ -1289,6 +1302,7 @@ namespace YoonseulFishing.Core
 
         private async Awaitable PlayChimeSequenceAsync(CancellationToken ct, params (int delayMs, float freq, float vol)[] notes)
         {
+            if (_audio == null) return; // nothing to play — also keeps head-less callers off the player loop
             try
             {
                 foreach (var n in notes)
@@ -1302,6 +1316,7 @@ namespace YoonseulFishing.Core
 
         private async Awaitable PlayDelayedChimeAsync(long delayMs, float freq, float vol, CancellationToken ct)
         {
+            if (_audio == null) return;
             try
             {
                 await DelayMs(delayMs, ct);
