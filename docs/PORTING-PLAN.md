@@ -55,8 +55,9 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
 
 - [x] **Phase 0 — 세팅** (현재): 폴더·git·`.gitignore`·플랜·`FishSpecies.cs`,
       Unity Hub 인스톨러 준비. *(에디터 불필요)*
-- [~] **Phase 1 — 게임 로직 코어** *(진행 중)*: `FishingViewModel.kt` →
-      `GameState` + `GameController` 순수 C# 포팅.
+- [x] **Phase 1 — 게임 로직 코어** *(완료)*: `FishingViewModel.kt` →
+      `GameState` + `GameController` 순수 C# 포팅. 에디터 컴파일 0 errors,
+      EditMode 테스트 21개 전부 통과.
   - [x] **타입 토대**: `Core/Observable.cs`(StateFlow 대응), `Data/Enums.cs`
         (TimeOfDay/Weather/NatureSound/FishingState/AppLanguage),
         `Data/BaitType.cs`, `Data/FishingSpot.cs`, `Data/CaughtFish.cs`,
@@ -77,7 +78,7 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
         `YoonseulFishing.EditModeTests`) + 테스트 3종 — 확률 가중치
         (`ComputeSpeciesWeight`)·XP/레벨 경계(`ApplyXp`)·퀘스트/업적/도감 클레임
         조건·미끼 상점. 테스트 위해 `AddXp` 순수 계산을 `ApplyXp`(static)로 추출.
-        **에디터 Test Runner(EditMode)에서 Run → 통과 확인 단계만 남음.**
+        **에디터 Test Runner에서 21개 전부 통과(✓21 / 0 fail / 0 skip).**
 - [ ] **Phase 2 — 저장**: `SaveService` (JSON, persistentDataPath). 잡은
       물고기 + 진행도 직렬화/역직렬화.
 - [ ] **Phase 3 — 오디오**: `ProceduralAudio` — 펜타토닉 벨/바람/물/빗/벌레
