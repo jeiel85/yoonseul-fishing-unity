@@ -1,0 +1,60 @@
+# ===== Unity =====
+# Generated / cached folders — never commit
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# Asset meta data should only be ignored when the corresponding asset is also ignored
+!/[Aa]ssets/**/*.meta
+
+# Unity3D generated files
+/[Aa]ssets/[Aa]ssetStoreTools*
+/[Aa]ssets/[Pp]lugins/[Ee]ditor/JetBrains*
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity3D crash reports
+sysinfo.txt
+crashlytics-build.properties
+
+# Builds (binaries) — exported to Desktop\Build instead
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Rider / VS / Code IDE
+.idea/
+.vs/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ===== Secrets — never commit keystores or credentials =====
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+keystore.properties
+/[Kk]eystore/

@@ -1,0 +1,40 @@
+# 윤슬낚시 (Unity Port) — Yoonseul Fishing
+
+원본 Android 앱([`yoonseul-fishing`](https://github.com/jeiel85/yoonseul-fishing),
+Kotlin/Jetpack Compose)을 **Unity 6 LTS / C#** 으로 포팅하는 저장소입니다.
+타깃 플랫폼은 **Android(재출시)** 와 **PC(Windows)** 입니다.
+
+> 🌊 바쁜 일상 속에서 잔잔한 물결(윤슬)을 바라보며 지친 마음을 녹이는 힐링 낚시 게임.
+> 절차적으로 그려지는 비주얼과 실시간 합성 사운드가 특징입니다.
+
+## 현재 상태
+
+**Phase 0 — 세팅 완료.** 프로젝트 스켈레톤 + 데이터 레이어(`FishSpecies`) 이식 완료.
+다음은 게임 로직 코어(Phase 1) 이식. 전체 로드맵은 [docs/PORTING-PLAN.md](docs/PORTING-PLAN.md).
+
+## 개발 환경 세팅
+
+1. **Unity Hub 설치** — `UnityHubSetup.exe` 실행 (이미 `다운로드` 폴더에 받아둠).
+2. **Unity 6 LTS 에디터 설치** — Hub 에서 "Recommended/LTS" 표시 버전. 설치 시
+   아래 모듈 체크:
+   - **Android Build Support** (+ Android SDK & NDK Tools, OpenJDK)
+   - **Windows Build Support (IL2CPP)** — PC 빌드용 (기본 포함)
+3. **프로젝트 열기** — Hub → `Add` → `Add project from disk` →
+   이 폴더(`yoonseul-fishing-unity`) 선택. 버전 불일치 경고가 뜨면 설치한
+   Unity 6 버전으로 열기(Open with) 선택.
+
+자세한 단계별 안내는 [docs/SETUP.md](docs/SETUP.md).
+
+## 기술 스택
+
+| 영역 | 선택 |
+|---|---|
+| 엔진 | Unity 6 LTS (Built-in Render Pipeline) |
+| 언어 | C# |
+| 렌더링/UI | UI Toolkit `Painter2D` (절차적 드로잉 — 원본 Compose Canvas 대응) |
+| 오디오 | `OnAudioFilterRead` PCM 실시간 합성 (원본 AudioTrack 대응) |
+| 저장 | JSON 세이브 파일 (`Application.persistentDataPath`) |
+
+## 라이선스
+
+[MIT](LICENSE) · © 2026 jeiel85
