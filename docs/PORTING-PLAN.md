@@ -55,10 +55,20 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
 
 - [x] **Phase 0 — 세팅** (현재): 폴더·git·`.gitignore`·플랜·`FishSpecies.cs`,
       Unity Hub 인스톨러 준비. *(에디터 불필요)*
-- [ ] **Phase 1 — 게임 로직 코어**: `FishingViewModel.kt` → `GameState` +
-      `GameController` 순수 C# 포팅. 상태머신(IDLE→CASTING→…→CAUGHT/LOST),
-      확률·시간/날씨 사이클·레벨/퀘스트·미끼 효과. EditMode 유닛테스트로 검증.
-      *(에디터 거의 불필요 — 테스트로 확인 가능)*
+- [~] **Phase 1 — 게임 로직 코어** *(진행 중)*: `FishingViewModel.kt` →
+      `GameState` + `GameController` 순수 C# 포팅.
+  - [x] **타입 토대**: `Core/Observable.cs`(StateFlow 대응), `Data/Enums.cs`
+        (TimeOfDay/Weather/NatureSound/FishingState/AppLanguage),
+        `Data/BaitType.cs`, `Data/FishingSpot.cs`, `Data/CaughtFish.cs`,
+        `Data/Celebration.cs`(CelebrationReward/Data, NotificationAlert)
+  - [x] **`Core/GameState.cs`**: ViewModel의 모든 StateFlow를 Observable 로 이식
+  - [ ] **`Core/GameController.cs`**: 상태머신(IDLE→CASTING→…→CAUGHT/LOST),
+        확률 기반 어종 추첨(`rollFishSpecies`), 시간/날씨/자연음 사이클, 레벨/XP·
+        코인·낚싯대 업그레이드, 일일 퀘스트·업적·도감 마일스톤·축하 이벤트.
+        Kotlin 코루틴(`viewModelScope.launch{delay()}`) → Unity 6 `Awaitable`
+        + `CancellationTokenSource`(=`Job.cancel()`) 로 모델링.
+        **컴파일 검증 필요 → Unity 설치 직후 EditMode 테스트로 확인.**
+  - [ ] **EditMode 유닛테스트**: 확률 가중치·레벨업 경계·퀘스트 클레임 조건 검증
 - [ ] **Phase 2 — 저장**: `SaveService` (JSON, persistentDataPath). 잡은
       물고기 + 진행도 직렬화/역직렬화.
 - [ ] **Phase 3 — 오디오**: `ProceduralAudio` — 펜타토닉 벨/바람/물/빗/벌레
