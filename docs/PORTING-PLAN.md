@@ -90,8 +90,13 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
       `delay` 후속 차임 → 미래 샘플 시작점으로 스케줄(샘플 정확). 오디오 스레드
       안전성: `System.Random`/`System.Math`만, chime 리스트는 `lock` 보호. 오프라인
       컴파일 0 errors. **에디터 Play 청취 검증만 남음**(코드는 나, 청취는 사수).
-- [ ] **Phase 4 — 절차적 씬 렌더링**: `Painter2D` 로 하늘/시간·날씨 그라데이션,
-      윤슬(물결 반짝임), 수면, 찌(bobber), 물고기 점프, 파문(ripple).
+- [~] **Phase 4 — 절차적 씬 렌더링** *(진행 중)*: `Rendering/ScenePainter.cs`(Painter2D
+      드로) + `Rendering/FishingSceneRenderer.cs`(UI Toolkit 패널 호스트 + 애니메이션 틱
+      + preview 시간/날씨). **1단계 배경 완료**: 하늘(띠 그라데이션)·별·구름·해/달·산·
+      수면 5겹 파동·윤슬. **2단계 남음**: 찌·파문·보트·점프 물고기·입자·비/바람·대기 오버레이.
+      ⚠️ **Painter2D는 그라데이션/블렌드모드/라디얼 미지원** → 띠 보간 + 단색 facet로
+      대응(로우폴리 화풍에 오히려 적합), additive 대기 오버레이는 vertex 메시로 추후.
+      육안 검증 필요 — PanelSettings 1회 셋업 후 Play.
 - [ ] **Phase 5 — UI**: 상점(미끼)·도감·퀘스트·업적·결과 카드 다이얼로그를
       UI Toolkit 으로.
 - [ ] **Phase 6 — 입력·통합**: 탭 리듬(찌 가라앉을 때 탭 → 좁혀지는 도넛 링
