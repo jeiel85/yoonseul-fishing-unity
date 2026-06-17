@@ -27,8 +27,8 @@ namespace YoonseulFishing.Core
     ///
     /// Boot wiring (done by the Phase 6 bootstrap MonoBehaviour):
     ///   1. <c>var state = new GameState();</c>
-    ///   2. <c>saveService.Load(state);</c>            // Phase 2 — JSON → state
-    ///   3. <c>var ctrl = new GameController(state, saveService, audio);</c>
+    ///   2. <c>var save = new SaveService(state); save.Load();</c> // Phase 2 — JSON → state
+    ///   3. <c>var ctrl = new GameController(state, save, audio);</c>
     ///   4. <c>ctrl.ResetDailyQuestsIfNewDay();</c>    // day-rollover reset
     ///   5. <c>ctrl.StartEnvironmentCycles();</c>      // begin auto time/weather/sound
     /// </summary>
