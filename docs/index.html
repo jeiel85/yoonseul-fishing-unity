@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>윤슬낚시 (Yoonseul Fishing) — 힐링 낚시 게임</title>
+<meta name="description" content="잔잔한 물결(윤슬)과 평화로운 음악 속에서 즐기는 힐링 낚시 게임. Kotlin/Compose Android 앱을 Unity 6 / C#으로 포팅 중입니다.">
+<link rel="icon" type="image/png" href="assets/icon.png">
+
+<!-- Open Graph / social preview -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="윤슬낚시 (Yoonseul Fishing)">
+<meta property="og:description" content="잔잔한 물결(윤슬)과 평화로운 음악 속에서 즐기는 힐링 낚시 게임.">
+<meta property="og:image" content="https://jeiel85.github.io/yoonseul-fishing-unity/assets/feature-graphic.png">
+<meta property="og:url" content="https://jeiel85.github.io/yoonseul-fishing-unity/">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+  :root {
+    --sunset:    #F4976C;
+    --peach:     #FFCBA4;
+    --sky-top:   #FCE7D4;
+    --sky-mid:   #EADCEF;
+    --water:     #8ECAD9;
+    --water-deep:#4E97AD;
+    --ink:       #36485A;
+    --ink-soft:  #6E7E8E;
+    --cream:     #FDF7F1;
+    --bobber:    #E8553E;
+    --card:      #FFFFFF;
+    --shadow:    0 10px 30px rgba(78, 151, 173, 0.15);
+    --radius:    20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Pretendard",
+                 "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--cream);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--water-deep); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 72px 0; }
+  h2 {
+    font-size: clamp(1.5rem, 3.5vw, 2.1rem);
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .sub {
+    text-align: center;
+    color: var(--ink-soft);
+    margin-bottom: 44px;
+    font-size: 1.02rem;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    background: linear-gradient(170deg, var(--sky-top) 0%, var(--sky-mid) 45%, #D7EBF1 100%);
+    padding: 56px 0 72px;
+    text-align: center;
+  }
+  .hero .icon {
+    width: 92px; height: 92px;
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 22px;
+  }
+  .hero h1 {
+    font-size: clamp(2.1rem, 6vw, 3.2rem);
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+  }
+  .hero h1 .en {
+    display: block;
+    font-size: 0.42em;
+    font-weight: 600;
+    color: var(--sunset);
+    letter-spacing: 0.04em;
+    margin-top: 6px;
+  }
+  .hero .tagline {
+    font-size: clamp(1.05rem, 2.6vw, 1.28rem);
+    margin: 20px auto 6px;
+    max-width: 30ch;
+    color: var(--ink);
+  }
+  .hero .tagline-en {
+    color: var(--ink-soft);
+    font-size: 0.98rem;
+    max-width: 42ch;
+    margin: 0 auto 28px;
+  }
+  .feature-img {
+    display: block;
+    width: 100%;
+    max-width: 680px;
+    margin: 34px auto 0;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
+  .badge {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(78,151,173,0.2);
+    color: var(--water-deep);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .badge.dev { background: var(--sunset); color: #fff; border-color: transparent; }
+
+  .btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 13px 26px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); text-decoration: none; box-shadow: var(--shadow); }
+  .btn-primary { background: var(--water-deep); color: #fff; }
+  .btn-ghost { background: #fff; color: var(--water-deep); border: 1.5px solid rgba(78,151,173,0.3); }
+
+  /* ---- About ---- */
+  .about { text-align: center; }
+  .about p { max-width: 62ch; margin: 0 auto 16px; font-size: 1.08rem; }
+  .about .lead { font-size: 1.25rem; color: var(--ink); font-weight: 600; }
+
+  /* ---- Features ---- */
+  .features { background: linear-gradient(180deg, #fff 0%, var(--cream) 100%); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 22px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 30px 26px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(78,151,173,0.08);
+  }
+  .card .emoji { font-size: 2rem; display: block; margin-bottom: 12px; }
+  .card h3 { font-size: 1.12rem; margin-bottom: 8px; }
+  .card p { color: var(--ink-soft); font-size: 0.96rem; }
+
+  /* ---- Screenshots ---- */
+  .shots .note {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    margin-bottom: 30px;
+    background: rgba(244,151,108,0.1);
+    border: 1px solid rgba(244,151,108,0.25);
+    border-radius: 12px;
+    padding: 10px 16px;
+    display: inline-block;
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+  .shot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+  }
+  .shot { text-align: center; }
+  .shot img {
+    width: 100%;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(78,151,173,0.1);
+  }
+  .shot span { display: block; margin-top: 10px; color: var(--ink-soft); font-size: 0.9rem; }
+
+  /* ---- Status / tech ---- */
+  .status { background: linear-gradient(180deg, var(--cream) 0%, #EAF3F6 100%); }
+  .status .panel {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 36px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .status p { margin-bottom: 18px; }
+  .stack { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px 24px; margin-top: 8px; }
+  .stack li { padding-left: 22px; position: relative; color: var(--ink-soft); font-size: 0.96rem; }
+  .stack li::before { content: "🌿"; position: absolute; left: 0; font-size: 0.85rem; }
+  .stack b { color: var(--ink); font-weight: 600; }
+
+  /* ---- Footer ---- */
+  footer { background: var(--ink); color: #C6D2DC; text-align: center; padding: 40px 24px; font-size: 0.92rem; }
+  footer a { color: var(--peach); }
+  footer .links { margin-bottom: 12px; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="icon" src="assets/icon.png" alt="윤슬낚시 아이콘">
+    <h1>윤슬낚시<span class="en">Yoonseul Fishing</span></h1>
+    <p class="tagline">잔잔한 물결(윤슬)과 평화로운 음악 속에서 즐기는 힐링 낚시 게임</p>
+    <p class="tagline-en">A healing fishing game set in calm water ripples and peaceful soundscapes</p>
+    <div class="badges">
+      <span class="badge dev">개발 중 · In development</span>
+      <span class="badge">Unity 6 · C#</span>
+      <span class="badge">Android · Windows</span>
+    </div>
+    <div class="btns">
+      <a class="btn btn-primary" href="https://github.com/jeiel85/yoonseul-fishing-unity">GitHub에서 보기</a>
+      <a class="btn btn-ghost" href="https://github.com/jeiel85/yoonseul-fishing-unity/blob/main/docs/PORTING-PLAN.md">개발 로드맵</a>
+    </div>
+    <img class="feature-img" src="assets/feature-graphic.png" alt="윤슬낚시 — 노을 진 호수에서의 낚시">
+  </div>
+</header>
+
+<section class="about">
+  <div class="wrap">
+    <p class="lead">바쁜 일상 속에서 잠시 쉼표를 찍어보세요.</p>
+    <p>‘윤슬낚시’는 물 위에 반짝이는 빛무리를 뜻하는 순우리말 ‘윤슬’을 모티브로 삼은
+       2.5D 로우폴리 힐링 낚시 게임입니다. 복잡한 경쟁도, 결제 유도도 없습니다.
+       실시간으로 합성되는 펜타토닉 선율과 빗소리·바람 소리에 귀 기울이며,
+       잔잔한 수면에 찌를 던져 물고기를 기다릴 뿐입니다.</p>
+  </div>
+</section>
+
+<section class="features">
+  <div class="wrap">
+    <h2>특징</h2>
+    <p class="sub">조용히, 천천히 즐기도록 만들어졌습니다</p>
+    <div class="grid">
+      <div class="card">
+        <span class="emoji">🌊</span>
+        <h3>아름다운 윤슬 비주얼</h3>
+        <p>시간과 날씨의 변화에 따라 부드럽게 전환되는 색조와 2.5D 로우폴리 연출.</p>
+      </div>
+      <div class="card">
+        <span class="emoji">🎵</span>
+        <h3>절차적 오디오 엔진</h3>
+        <p>녹음 파일이 아닌, 코드가 실시간으로 연주하는 펜타토닉 선율과 비·바람·풀벌레 소리.</p>
+      </div>
+      <div class="card">
+        <span class="emoji">🐟</span>
+        <h3>12종의 신비로운 어류</h3>
+        <p>황금 붕어부터 전설의 달빛 메기, 신화 속 별빛 고래까지 도감을 채워보세요.</p>
+      </div>
+      <div class="card">
+        <span class="emoji">🎣</span>
+        <h3>소박한 성장과 수집</h3>
+        <p>코인을 모아 미끼를 사고, 레벨을 올리고, 낚시터를 옮기며 천천히 성장합니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="shots">
+  <div class="wrap">
+    <h2>스크린샷</h2>
+    <p class="note">※ 아래는 원본 Android 버전 화면입니다. Unity 포트는 현재 개발 중입니다.</p>
+    <div class="shot-grid">
+      <div class="shot"><img src="assets/screenshot-day.png" alt="낮 게임플레이"><span>맑은 낮</span></div>
+      <div class="shot"><img src="assets/screenshot-sunset.png" alt="노을 게임플레이"><span>노을</span></div>
+      <div class="shot"><img src="assets/screenshot-serene.png" alt="잔잔한 오후"><span>잔잔한 오후</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="status">
+  <div class="wrap">
+    <h2>지금은 — Unity 포팅 중</h2>
+    <p class="sub">원본 Android 앱(Kotlin/Compose)을 Unity 6 / C#으로 다시 만들고 있습니다</p>
+    <div class="panel">
+      <p>게임 로직(상태머신·확률·합성 수식)은 1:1로 옮기고, 그릇(렌더링·UI·저장·오디오
+         출력)만 Unity 것으로 갈아끼우는 재작성입니다. 타깃은 <b>Android 재출시</b>와
+         <b>PC(Windows)</b>입니다. 현재 <b>Phase 1 — 게임 로직 코어</b> 이식 중입니다.</p>
+      <ul class="stack">
+        <li><b>엔진</b> Unity 6 LTS (Built-in)</li>
+        <li><b>언어</b> C#</li>
+        <li><b>렌더링</b> UI Toolkit Painter2D</li>
+        <li><b>오디오</b> 실시간 PCM 합성</li>
+        <li><b>저장</b> JSON 세이브 파일</li>
+        <li><b>진행</b> <a href="https://github.com/jeiel85/yoonseul-fishing-unity/blob/main/docs/PORTING-PLAN.md">로드맵 보기 →</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="links">
+    <a href="https://github.com/jeiel85/yoonseul-fishing-unity">Unity 포트 저장소</a>
+    <a href="https://github.com/jeiel85/yoonseul-fishing">원본 Android 저장소</a>
+  </div>
+  <div>© 2026 jeiel85 · MIT License · 🌊 윤슬낚시</div>
+</footer>
+
+</body>
+</html>

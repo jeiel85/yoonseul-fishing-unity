@@ -1,9 +1,13 @@
 # 윤슬낚시 (Unity Port) — Yoonseul Fishing
 
+[![윤슬낚시 — Yoonseul Fishing](docs/assets/feature-graphic.png)](https://jeiel85.github.io/yoonseul-fishing-unity/)
+
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Unity](https://img.shields.io/badge/Unity-6000.5%20LTS-black?logo=unity)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Windows-lightgrey)
 ![Language](https://img.shields.io/badge/C%23-Built--in%20RP-239120?logo=csharp)
+
+**🌊 [프로젝트 소개 페이지](https://jeiel85.github.io/yoonseul-fishing-unity/)** — 게임 소개·스크린샷·개발 현황.
 
 원본 Android 앱([`yoonseul-fishing`](https://github.com/jeiel85/yoonseul-fishing),
 Kotlin/Jetpack Compose)을 **Unity 6 LTS / C#** 으로 포팅하는 저장소입니다.
