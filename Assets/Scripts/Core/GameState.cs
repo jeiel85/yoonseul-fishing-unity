@@ -54,6 +54,14 @@ namespace YoonseulFishing.Core
         public readonly Observable<FishingSpot> CurrentSpot = new Observable<FishingSpot>(FishingSpot.WindyValley);
 
         // --- Daily quests ---
+        /// <summary>
+        /// <c>yyyyMMdd</c> of the day the current daily-quest progress belongs to.
+        /// Mirrors the Android <c>"daily_quest_date"</c> pref. Not surfaced to the UI
+        /// (no observers), but it is part of the persisted save model: GameController
+        /// compares it against today to reset quests on the first play of a new day.
+        /// </summary>
+        public string LastDailyQuestDate = "";
+
         public readonly Observable<int> DailyQuestCatchCount = new Observable<int>(0);
         public readonly Observable<int> DailyQuestRareCount = new Observable<int>(0);
         public readonly Observable<int> DailyQuestGoldEarned = new Observable<int>(0);

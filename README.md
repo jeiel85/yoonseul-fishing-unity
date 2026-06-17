@@ -9,8 +9,11 @@ Kotlin/Jetpack Compose)을 **Unity 6 LTS / C#** 으로 포팅하는 저장소입
 
 ## 현재 상태
 
-**Phase 0 — 세팅 완료.** 프로젝트 스켈레톤 + 데이터 레이어(`FishSpecies`) 이식 완료.
-다음은 게임 로직 코어(Phase 1) 이식. 전체 로드맵은 [docs/PORTING-PLAN.md](docs/PORTING-PLAN.md).
+**Phase 1 — 게임 로직 코어 이식 중.** 데이터 레이어 + 관찰형 상태(`GameState`) +
+상태머신·확률 추첨·진행도·퀘스트를 담은 `GameController` C# 포팅 완료
+(UnityEngine 스텁 대상 오프라인 컴파일 검증 통과, 에디터 실 검증은 설치 후).
+다음은 EditMode 유닛테스트 + 저장 레이어(Phase 2). 전체 로드맵은
+[docs/PORTING-PLAN.md](docs/PORTING-PLAN.md).
 
 ## 개발 환경 세팅
 

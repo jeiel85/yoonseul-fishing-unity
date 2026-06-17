@@ -62,13 +62,19 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
         `Data/BaitType.cs`, `Data/FishingSpot.cs`, `Data/CaughtFish.cs`,
         `Data/Celebration.cs`(CelebrationReward/Data, NotificationAlert)
   - [x] **`Core/GameState.cs`**: ViewModel의 모든 StateFlow를 Observable 로 이식
-  - [ ] **`Core/GameController.cs`**: 상태머신(IDLE→CASTING→…→CAUGHT/LOST),
-        확률 기반 어종 추첨(`rollFishSpecies`), 시간/날씨/자연음 사이클, 레벨/XP·
-        코인·낚싯대 업그레이드, 일일 퀘스트·업적·도감 마일스톤·축하 이벤트.
-        Kotlin 코루틴(`viewModelScope.launch{delay()}`) → Unity 6 `Awaitable`
-        + `CancellationTokenSource`(=`Job.cancel()`) 로 모델링.
-        **컴파일 검증 필요 → Unity 설치 직후 EditMode 테스트로 확인.**
-  - [ ] **EditMode 유닛테스트**: 확률 가중치·레벨업 경계·퀘스트 클레임 조건 검증
+  - [x] **`Core/GameController.cs`**: 상태머신(IDLE→CASTING→…→CAUGHT/LOST),
+        확률 기반 어종 추첨(`RollFishSpecies`/`ComputeSpeciesWeight`), 시간/날씨/
+        자연음 사이클, 레벨/XP·코인·낚싯대 업그레이드, 일일 퀘스트·업적·도감
+        마일스톤·축하 이벤트. Kotlin 코루틴(`viewModelScope.launch{delay()}`) →
+        Unity 6 `Awaitable` + `CancellationTokenSource`(=`Job.cancel()`) 로 모델링.
+        경계(seam) 인터페이스 신설: `Audio/IAudioSynthesizer`(Phase 3 구현),
+        `Core/ISaveService`(Phase 2 구현 — `prefs`/Room 흩뿌린 저장을 GameState
+        JSON 스냅샷 1개로 통합). 안드로이드 `prefs.apply()` 지점마다 `_save.Save()`.
+        **오프라인 컴파일 검증 통과**(UnityEngine 스텁 대상 `dotnet build`,
+        LangVersion 9.0, 0 errors) — 단, 에디터 실 컴파일·플레이 검증은 Unity
+        설치 후로 남음.
+  - [ ] **EditMode 유닛테스트**: 확률 가중치(`ComputeSpeciesWeight`)·레벨업 경계·
+        퀘스트 클레임 조건 검증. *(Test Framework asmdef 필요 → 에디터에서 실행)*
 - [ ] **Phase 2 — 저장**: `SaveService` (JSON, persistentDataPath). 잡은
       물고기 + 진행도 직렬화/역직렬화.
 - [ ] **Phase 3 — 오디오**: `ProceduralAudio` — 펜타토닉 벨/바람/물/빗/벌레
