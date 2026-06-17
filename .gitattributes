@@ -1,0 +1,47 @@
+# Unity .gitattributes — line-ending normalization.
+# No Git LFS: this is an asset-light procedural game (visuals are code-drawn,
+# audio is synthesized). Add LFS tracking here if large binaries arrive later.
+
+# Auto-detect text files; store LF in the repo, check out native line endings.
+* text=auto
+
+# Source / text assets — keep as text with proper diffs.
+*.cs          text diff=csharp
+*.shader      text
+*.cginc       text
+*.hlsl        text
+*.compute     text
+*.uss         text
+*.uxml        text
+*.json        text
+*.md          text
+*.txt         text
+*.xml         text
+*.yml         text
+*.yaml        text
+
+# Unity YAML assets — text, LF-normalized, merged via UnityYAMLMerge when set up.
+*.meta        text eol=lf merge=unityyamlmerge
+*.unity       text eol=lf merge=unityyamlmerge
+*.asset       text eol=lf merge=unityyamlmerge
+*.prefab      text eol=lf merge=unityyamlmerge
+*.mat         text eol=lf merge=unityyamlmerge
+*.controller  text eol=lf merge=unityyamlmerge
+*.anim        text eol=lf merge=unityyamlmerge
+
+# Binary assets — never normalize or diff.
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.gif         binary
+*.psd         binary
+*.fbx         binary
+*.wav         binary
+*.mp3         binary
+*.ogg         binary
+*.ttf         binary
+*.otf         binary
+*.dll         binary
+*.so          binary
+*.aar         binary
+*.unitypackage binary
