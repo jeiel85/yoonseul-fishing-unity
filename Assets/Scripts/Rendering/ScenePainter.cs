@@ -99,6 +99,9 @@ namespace YoonseulFishing.Rendering
 
             // 6. Rolling lake fog during mist weather.
             if (weather == Weather.Mist) DrawMist(p, ticks, w, h);
+
+            // 7. Wooden boat + fisherman (+ cast line once fishing).
+            DrawBoatAndFisherman(p, ticks, fishingState, bobberX, bobberY, w, h);
         }
 
         // ------------------------------------------------------------------
@@ -324,6 +327,82 @@ namespace YoonseulFishing.Rendering
             }
             p.ClosePath();
             p.Stroke();
+        }
+
+        // Compose drew the boat in a translated+rotated local space (withTransform);
+        // Painter2D has no transform stack, so we map each local point to world via Tf().
+        private static void DrawBoatAndFisherman(Painter2D p, long ticks, FishingState state,
+            float bobberX, float bobberY, float w, float h)
+        {
+            float baseX = w * 0.36f;
+            float baseY = h * 0.61f;
+            float bobTime = ticks * 0.0018f;
+            float swayY = Mathf.Sin(bobTime) * 4.5f;
+            float rollDeg = Mathf.Cos(bobTime) * 1.5f; // gentle roll
+            float rad = rollDeg * Mathf.Deg2Rad;
+            float cs = Mathf.Cos(rad), sn = Mathf.Sin(rad);
+
+            Vector2 Tf(float lx, float ly)
+            {
+                float rx = lx * cs - ly * sn;
+                float ry = lx * sn + ly * cs;
+                return new Vector2(baseX + rx, baseY + swayY + ry);
+            }
+
+            p.lineCap = LineCap.Round;
+
+            // Shadow under the boat.
+            FillEllipse(p, Tf(0f, 26f), 80f, 11f, new Color(0f, 0f, 0f, 0.2f));
+
+            // Hollow canoe in low-poly facets.
+            FillPoly(p, Rgb(0x382312), Tf(-70, -2), Tf(-18, 11), Tf(60, -2), Tf(0, -5));   // inside cavity
+            FillPoly(p, Rgb(0xBE783A), Tf(-75, 0), Tf(-20, 15), Tf(65, 0), Tf(0, -6));     // hull
+            FillPoly(p, Rgb(0x8C5325), Tf(-75, 0), Tf(-20, 15), Tf(0, 4));                 // hull shadow
+            FillPoly(p, Rgb(0xE5B083), Tf(-75, 0), Tf(65, 0), Tf(55, -3), Tf(-65, -3));    // rim
+
+            // Fisherman.
+            FillPoly(p, Rgb(0x2E5B88), Tf(-16, 0), Tf(6, 0), Tf(8, -11), Tf(-18, -11));    // shorts
+            FillPoly(p, Rgb(0xFBFBFB), Tf(-18, -11), Tf(8, -11), Tf(2, -36), Tf(-12, -36)); // white shirt
+            FillCircle(p, Tf(-5, -36), 8.5f, Rgb(0x282828)); // hair
+            FillCircle(p, Tf(-5, -33), 6.5f, Rgb(0xEBC19F)); // neck/skin
+            StrokeLine(p, Tf(-11, -25), Tf(-1, -20), Rgb(0xFBFBFB), 6.5f); // sleeve
+            StrokeLine(p, Tf(-1, -20), Tf(4, -24), Rgb(0xEBC19F), 5.2f);   // forearm
+
+            // Straw hat (head centred at -5,-40).
+            FillEllipse(p, Tf(-5f, -34.5f), 22f, 4.5f, Rgb(0xE9CB99)); // brim
+            FillEllipse(p, Tf(-5f, -35f), 18f, 3.5f, Rgb(0xD6B57E));   // brim inner
+            FillPoly(p, Rgb(0x1C1C1C), Tf(-16, -46), Tf(6, -46), Tf(6, -39), Tf(-16, -39)); // black band
+            FillPoly(p, Rgb(0xE9CB99), Tf(-16, -57), Tf(6, -57), Tf(6, -46), Tf(-16, -46)); // crown
+            FillPoly(p, Rgb(0xD6B57E), Tf(-5, -57), Tf(6, -57), Tf(6, -46), Tf(-5, -46));   // crown shade
+
+            // Bamboo rod (rest pose; rod-bend animation wired in Phase 6).
+            var rodRoot = new Vector2(4f, -24f);
+            var rodTip = new Vector2(45f, -55f);
+            StrokeLine(p, Tf(rodRoot.x, rodRoot.y), Tf(rodTip.x, rodTip.y), Rgb(0xBBB189), 3.5f);
+            for (int step = 1; step <= 4; step++)
+            {
+                float fr = step / 4f;
+                float jx = rodRoot.x * (1f - fr) + rodTip.x * fr;
+                float jy = rodRoot.y * (1f - fr) + rodTip.y * fr;
+                FillCircle(p, Tf(jx, jy), 2.5f, Rgb(0x867E52)); // bamboo joints
+            }
+
+            // Fishing line — quadratic Bézier that sags down to the bobber.
+            if (state != FishingState.Idle)
+            {
+                float localBobberX = bobberX * w - baseX;
+                float localBobberY = bobberY * h - (baseY + swayY);
+                float ctrlX = (rodTip.x + localBobberX) * 0.5f;
+                float ctrlY = (rodTip.y + localBobberY) * 0.5f + 50f;
+                p.strokeColor = new Color(1f, 1f, 1f, 0.55f);
+                p.lineWidth = 1.2f;
+                p.BeginPath();
+                p.MoveTo(Tf(rodTip.x, rodTip.y));
+                p.QuadraticCurveTo(Tf(ctrlX, ctrlY), Tf(localBobberX, localBobberY));
+                p.Stroke();
+            }
+
+            p.lineCap = LineCap.Butt;
         }
 
         // ------------------------------------------------------------------
