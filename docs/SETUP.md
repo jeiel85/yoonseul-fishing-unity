@@ -1,6 +1,8 @@
 # 개발 환경 세팅 가이드 (Unity 설치 → 프로젝트 열기)
 
-이 PC 에는 현재 Unity 가 설치돼 있지 않습니다. 아래 순서대로 진행하세요.
+> ✅ **현재 상태:** 사수 PC에 **Unity 6000.5.0f1** 설치 + 프로젝트 오픈 완료
+> (스크립트 컴파일 에러 0). 아래는 새 PC에서 클론해 셋업할 때의 재현 가이드입니다.
+
 **1~2번(설치·라이선스)은 GUI 작업이라 직접 하셔야 합니다.**
 
 ## 1. Unity Hub 설치
@@ -44,11 +46,13 @@ D:\Project\yoonseul-fishing-unity
 - 첫 오픈 시 Unity 가 `Library/` 와 누락된 `ProjectSettings` 를 자동 생성합니다.
   (수 분 소요될 수 있음 — 정상입니다.)
 
-## 4. 설치 끝나면 알려주세요
+## 4. 버전 동기화 (완료)
 
-설치한 **정확한 Unity 버전**(예: `6000.1.x`)을 알려주시면
-`ProjectSettings/ProjectVersion.txt` 를 그 버전으로 맞춰 버전 경고 없이 열리게
-정리하겠습니다. 이후 Phase 1(게임 로직 코어) 부터 코드 이식을 이어갑니다.
+설치 버전 `6000.5.0f1` 에 맞춰 `ProjectSettings/ProjectVersion.txt` 를 핀했고,
+첫 오픈 때 Unity 가 리비전 해시까지 채웠습니다. 첫 오픈으로 생성된
+`ProjectSettings/*.asset`·`.meta`·`Packages/packages-lock.json` 도 커밋되어,
+다른 PC에서 클론하면 동일하게 열립니다. 현재 Phase 1(게임 로직 코어) 진행 중 —
+로드맵은 [PORTING-PLAN.md](PORTING-PLAN.md).
 
 ## 코드 에디터 (선택)
 
