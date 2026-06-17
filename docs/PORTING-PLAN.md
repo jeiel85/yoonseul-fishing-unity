@@ -79,11 +79,11 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
         (`ComputeSpeciesWeight`)·XP/레벨 경계(`ApplyXp`)·퀘스트/업적/도감 클레임
         조건·미끼 상점. 테스트 위해 `AddXp` 순수 계산을 `ApplyXp`(static)로 추출.
         **에디터 Test Runner에서 21개 전부 통과(✓21 / 0 fail / 0 skip).**
-- [~] **Phase 2 — 저장** *(진행 중)*: `Data/SaveData.cs`(GameState↔JSON DTO —
+- [x] **Phase 2 — 저장** *(완료)*: `Data/SaveData.cs`(GameState↔JSON DTO —
       `FromState`/`ApplyTo`, 진행도·설정·미끼·퀘스트·업적·도감 + 잡은 물고기 리스트)
       + `Data/SaveService.cs`(`ISaveService` 구현 — `JsonUtility`, `persistentDataPath/
       save.json`, Save/Load/Delete, IO 실패는 로깅 후 기본값으로 시작). 라운드트립
-      테스트 5종 작성. 오프라인 컴파일 0 errors. **에디터 Test Runner 통과 확인만 남음.**
+      테스트 5종, 에디터 Test Runner 26개 전부 통과.
 - [ ] **Phase 3 — 오디오**: `ProceduralAudio` — 펜타토닉 벨/바람/물/빗/벌레
       합성 수식을 `OnAudioFilterRead` 로 이식.
 - [ ] **Phase 4 — 절차적 씬 렌더링**: `Painter2D` 로 하늘/시간·날씨 그라데이션,
