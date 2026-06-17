@@ -84,8 +84,12 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
       + `Data/SaveService.cs`(`ISaveService` 구현 — `JsonUtility`, `persistentDataPath/
       save.json`, Save/Load/Delete, IO 실패는 로깅 후 기본값으로 시작). 라운드트립
       테스트 5종, 에디터 Test Runner 26개 전부 통과.
-- [ ] **Phase 3 — 오디오**: `ProceduralAudio` — 펜타토닉 벨/바람/물/빗/벌레
-      합성 수식을 `OnAudioFilterRead` 로 이식.
+- [~] **Phase 3 — 오디오** *(진행 중)*: `Audio/ProceduralAudio.cs`
+      (MonoBehaviour : IAudioSynthesizer) — 바람/물/풀벌레/빗방울/시간대 드론 +
+      펜타토닉 글래스 벨을 `OnAudioFilterRead`(오디오 스레드)로 합성. Android 코루틴
+      `delay` 후속 차임 → 미래 샘플 시작점으로 스케줄(샘플 정확). 오디오 스레드
+      안전성: `System.Random`/`System.Math`만, chime 리스트는 `lock` 보호. 오프라인
+      컴파일 0 errors. **에디터 Play 청취 검증만 남음**(코드는 나, 청취는 사수).
 - [ ] **Phase 4 — 절차적 씬 렌더링**: `Painter2D` 로 하늘/시간·날씨 그라데이션,
       윤슬(물결 반짝임), 수면, 찌(bobber), 물고기 점프, 파문(ripple).
 - [ ] **Phase 5 — UI**: 상점(미끼)·도감·퀘스트·업적·결과 카드 다이얼로그를
