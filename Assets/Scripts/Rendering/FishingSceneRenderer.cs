@@ -28,6 +28,9 @@ namespace YoonseulFishing.Rendering
         [Header("Preview (until Phase 6 bootstrap drives these)")]
         [SerializeField] private TimeOfDay previewTime = TimeOfDay.Day;
         [SerializeField] private Weather previewWeather = Weather.Clear;
+        [SerializeField] private FishingState previewFishingState = FishingState.Waiting;
+        [Range(0f, 1f)] [SerializeField] private float bobberX = 0.5f;
+        [Range(0f, 1f)] [SerializeField] private float bobberY = 0.7f;
 
         [Header("Decor density")]
         [SerializeField] private int starCount = 70;
@@ -43,6 +46,12 @@ namespace YoonseulFishing.Rendering
 
         /// <summary>Set by the bootstrap (Phase 6) from the weather observable.</summary>
         public void SetWeather(Weather weather) => previewWeather = weather;
+
+        /// <summary>Set by the bootstrap (Phase 6) from the fishing-state observable.</summary>
+        public void SetFishingState(FishingState state) => previewFishingState = state;
+
+        /// <summary>Set by the bootstrap (Phase 6) from the bobber-position observables (0..1).</summary>
+        public void SetBobber(float x, float y) { bobberX = x; bobberY = y; }
 
         private void OnEnable()
         {
@@ -77,7 +86,8 @@ namespace YoonseulFishing.Rendering
         {
             Rect rect = _scene.contentRect;
             long ticks = (long)((Time.time - _startTime) * 1000f);
-            ScenePainter.DrawScene(ctx.painter2D, rect, ticks, previewTime, previewWeather, _stars, _sparkles);
+            ScenePainter.DrawScene(ctx.painter2D, rect, ticks, previewTime, previewWeather,
+                previewFishingState, bobberX, bobberY, _stars, _sparkles);
         }
 
         private void GenerateDecor()

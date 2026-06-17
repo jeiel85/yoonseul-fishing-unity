@@ -70,7 +70,7 @@ namespace YoonseulFishing.Rendering
         /// <paramref name="ticks"/> is elapsed milliseconds (drives animation).
         /// </summary>
         public static void DrawScene(Painter2D p, Rect rect, long ticks, TimeOfDay time, Weather weather,
-            Star[] stars, Sparkle[] sparkles)
+            FishingState fishingState, float bobberX, float bobberY, Star[] stars, Sparkle[] sparkles)
         {
             float w = rect.width;
             float h = rect.height;
@@ -93,6 +93,12 @@ namespace YoonseulFishing.Rendering
 
             // 4. Water + 윤슬 sparkles.
             DrawWaterLowPoly(p, pal, sparkles, ticks, time, weather, w, h);
+
+            // 5. Bobber + ripples (only while actively fishing).
+            DrawBobberAndRipples(p, fishingState, bobberX, bobberY, ticks, weather, w, h);
+
+            // 6. Rolling lake fog during mist weather.
+            if (weather == Weather.Mist) DrawMist(p, ticks, w, h);
         }
 
         // ------------------------------------------------------------------
@@ -239,6 +245,88 @@ namespace YoonseulFishing.Rendering
         private static float RainSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.35f : t == TimeOfDay.Sunset ? 0.4f : 0.4f;
 
         // ------------------------------------------------------------------
+        //  Foreground: bobber + ripples + mist (slice 2)
+        // ------------------------------------------------------------------
+
+        private static void DrawBobberAndRipples(Painter2D p, FishingState state, float bobberX, float bobberY,
+            long ticks, Weather weather, float w, float h)
+        {
+            if (state == FishingState.Idle || state == FishingState.Casting) return;
+
+            float bx = bobberX * w;
+            float by = bobberY * h;
+
+            double bobValue = ticks * 0.0035;
+            float bobOffset =
+                state == FishingState.Waiting ? Mathf.Sin((float)bobValue) * 5f :
+                state == FishingState.Nibble ? Mathf.Sin((float)(bobValue * 3.0)) * 10f :
+                state == FishingState.Bite ? 16f : 0f;
+
+            // Expanding concentric ripple — wider/faster under rain.
+            float ripplePhase = (ticks * (weather == Weather.Rain ? 0.0022f : 0.0015f)) % 1.0f;
+            StrokeRipple(p, new Vector2(bx, by),
+                16f + ripplePhase * (weather == Weather.Rain ? 75f : 60f),
+                White(0.6f * (1f - ripplePhase)), 2.5f, 8);
+
+            if (state == FishingState.Nibble || state == FishingState.Bite)
+            {
+                float micro = (ticks * 0.0035f) % 1.0f;
+                StrokeRipple(p, new Vector2(bx, by), 8f + micro * 30f, White(0.8f * (1f - micro)), 3.5f, 6);
+            }
+
+            // Physical bobber — hidden while fully plunged under on BITE.
+            if (state != FishingState.Bite)
+            {
+                var topR = new Vector2(bx, by + bobOffset - 15f);
+                var botR = new Vector2(bx, by + bobOffset);
+                FillCircle(p, topR, 5.5f, Rgb(0xFF3C3C));                                         // red tip
+                StrokeLine(p, topR, botR, White(1f), 3f);                                         // white stem
+                FillEllipse(p, new Vector2(bx, by + bobOffset - 3f), 6f, 5f, White(1f));          // white body
+                FillEllipse(p, new Vector2(bx, by + bobOffset - 5.5f), 6f, 2.5f, Rgb(0xFF3C3C));  // red band on top half
+            }
+        }
+
+        private static void DrawMist(Painter2D p, long ticks, float w, float h)
+        {
+            float mistY = h * 0.52f;
+            for (int layer = 0; layer < 3; layer++)
+            {
+                float layerY = mistY + layer * 16f;
+                p.fillColor = White(0.08f - layer * 0.02f);
+                p.BeginPath();
+                p.MoveTo(new Vector2(0, layerY - 15f));
+                const int steps = 6;
+                float stepW = w / steps;
+                for (int step = 0; step <= steps; step++)
+                {
+                    float px = step * stepW;
+                    float py = layerY + Mathf.Sin((ticks * 0.0006f) + step * 1.5f + layer * 2f) * 12f;
+                    p.LineTo(new Vector2(px, py));
+                }
+                p.LineTo(new Vector2(w, layerY + 50f));
+                p.LineTo(new Vector2(0, layerY + 50f));
+                p.ClosePath();
+                p.Fill();
+            }
+        }
+
+        private static void StrokeRipple(Painter2D p, Vector2 center, float radius, Color color, float strokeWidth, int segments)
+        {
+            p.strokeColor = color;
+            p.lineWidth = strokeWidth;
+            p.BeginPath();
+            for (int i = 0; i < segments; i++)
+            {
+                double ang = i * 2.0 * Math.PI / segments;
+                float x = center.x + radius * (float)Math.Cos(ang);
+                float y = center.y + (radius * 0.4f) * (float)Math.Sin(ang); // vertical flatten for water perspective
+                if (i == 0) p.MoveTo(new Vector2(x, y)); else p.LineTo(new Vector2(x, y));
+            }
+            p.ClosePath();
+            p.Stroke();
+        }
+
+        // ------------------------------------------------------------------
         //  Painter2D helpers
         // ------------------------------------------------------------------
 
@@ -266,6 +354,30 @@ namespace YoonseulFishing.Rendering
             FillPoly(p, color,
                 new Vector2(r.xMin, r.yMin), new Vector2(r.xMax, r.yMin),
                 new Vector2(r.xMax, r.yMax), new Vector2(r.xMin, r.yMax));
+        }
+
+        private static void StrokeLine(Painter2D p, Vector2 a, Vector2 b, Color color, float width)
+        {
+            p.strokeColor = color;
+            p.lineWidth = width;
+            p.BeginPath();
+            p.MoveTo(a);
+            p.LineTo(b);
+            p.Stroke();
+        }
+
+        private static void FillEllipse(Painter2D p, Vector2 c, float rx, float ry, Color color, int segments = 16)
+        {
+            p.fillColor = color;
+            p.BeginPath();
+            for (int i = 0; i < segments; i++)
+            {
+                double a = i * 2.0 * Math.PI / segments;
+                var pt = new Vector2(c.x + rx * (float)Math.Cos(a), c.y + ry * (float)Math.Sin(a));
+                if (i == 0) p.MoveTo(pt); else p.LineTo(pt);
+            }
+            p.ClosePath();
+            p.Fill();
         }
 
         /// <summary>Approximates a vertical 3-stop gradient with <paramref name="bands"/> solid strips.</summary>
