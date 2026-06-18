@@ -45,6 +45,9 @@ namespace YoonseulFishing.Rendering
         private ScenePainter.RainStroke[] _rainStrokes;
         private FishSpecies _splashFish;
         private float _splashProgress;
+        private ScenePainter.SplashParticle[] _particles;
+        private Rect _lastRect;
+        private FishingState _prevState = FishingState.Idle;
         private float _startTime;
 
         /// <summary>Set by the bootstrap (Phase 6) from the time-of-day observable.</summary>
@@ -89,7 +92,49 @@ namespace YoonseulFishing.Rendering
         private void Update()
         {
             AdvanceWeather();
+            UpdateSplashParticles();
             _scene?.MarkDirtyRepaint(); // re-issue draw each frame to animate
+        }
+
+        private void UpdateSplashParticles()
+        {
+            if (previewFishingState == FishingState.Splashing && _prevState != FishingState.Splashing)
+                EmitSplash();
+            _prevState = previewFishingState;
+
+            if (_particles == null) return;
+            for (int i = 0; i < _particles.Length; i++)
+            {
+                if (_particles[i].Alpha <= 0f) continue;
+                _particles[i].Vy += 0.25f;            // gravity
+                _particles[i].X += _particles[i].Vx;
+                _particles[i].Y += _particles[i].Vy;
+                _particles[i].Rotation += _particles[i].RotationSpeed;
+                _particles[i].Alpha -= 0.012f;        // fade out (~1.4 s)
+            }
+        }
+
+        private void EmitSplash()
+        {
+            if (_particles == null || _lastRect.width <= 1f) return;
+            float ox = bobberX * _lastRect.width;
+            float oy = bobberY * _lastRect.height;
+            for (int i = 0; i < _particles.Length; i++)
+            {
+                _particles[i] = new ScenePainter.SplashParticle
+                {
+                    X = ox + (Random.value - 0.5f) * 16f,
+                    Y = oy + (Random.value - 0.5f) * 8f,
+                    Vx = (Random.value - 0.5f) * 6f,
+                    Vy = -2f - Random.value * 6f,        // burst upward
+                    BaseSize = 3f + Random.value * 5f,
+                    Alpha = 1f,
+                    Rotation = Random.value * 360f,
+                    RotationSpeed = (Random.value - 0.5f) * 12f,
+                    ShapeType = i % 3,
+                    Color = (i % 2 == 0) ? new Color(1f, 1f, 1f, 1f) : new Color(0.78f, 0.90f, 0.97f, 1f),
+                };
+            }
         }
 
         // Drifts the wind streaks rightward and the rain streaks downward, wrapping
@@ -122,6 +167,7 @@ namespace YoonseulFishing.Rendering
         private void OnGenerateVisualContent(MeshGenerationContext ctx)
         {
             Rect rect = _scene.contentRect;
+            _lastRect = rect;
             long ticks = (long)((Time.time - _startTime) * 1000f);
 
             // Splash leap — driven by the bootstrap if set, else looped from the preview species.
@@ -131,7 +177,7 @@ namespace YoonseulFishing.Rendering
 
             ScenePainter.DrawScene(ctx.painter2D, rect, ticks, previewTime, previewWeather,
                 previewFishingState, bobberX, bobberY, splashFish, splashProgress, _stars, _sparkles,
-                _windStrokes, _rainStrokes, _motes);
+                _windStrokes, _rainStrokes, _motes, _particles);
         }
 
         private void GenerateDecor()
@@ -206,6 +252,8 @@ namespace YoonseulFishing.Rendering
                     Speed = 0.012f + Random.value * 0.010f,
                 };
             }
+
+            _particles = new ScenePainter.SplashParticle[40]; // pool — Alpha 0 means inactive
         }
     }
 }

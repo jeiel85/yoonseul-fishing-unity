@@ -66,6 +66,7 @@ namespace YoonseulFishing.Rendering
         public struct WindStroke { public float X, Y, Length, Width, Speed, Opacity; }
         public struct RainStroke { public float X, Y, Length, Speed; }
         public struct AtmMote { public float RelX, BaseY, Radius, Depth, Phase, DriftSpeed, SwayAmp; }
+        public struct SplashParticle { public float X, Y, Vx, Vy, BaseSize, Alpha, Rotation, RotationSpeed; public int ShapeType; public Color Color; }
 
         /// <summary>
         /// Draws the full background scene into <paramref name="p"/> over
@@ -74,7 +75,8 @@ namespace YoonseulFishing.Rendering
         /// </summary>
         public static void DrawScene(Painter2D p, Rect rect, long ticks, TimeOfDay time, Weather weather,
             FishingState fishingState, float bobberX, float bobberY, FishSpecies splashFish, float splashProgress,
-            Star[] stars, Sparkle[] sparkles, WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes)
+            Star[] stars, Sparkle[] sparkles, WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes,
+            SplashParticle[] particles)
         {
             float w = rect.width;
             float h = rect.height;
@@ -119,6 +121,9 @@ namespace YoonseulFishing.Rendering
                 float rot = -50f + splashProgress * 100f + Mathf.Sin(ticks * 0.04f) * 15f;
                 DrawJumpingFish(p, splashFish, ticks, fishX, fishY, rot, splashProgress > 0.5f);
             }
+
+            // 8c. Water-splash particles (geometric shards).
+            DrawSplashParticles(p, particles);
 
             // 9. Falling rain streaks.
             if (weather == Weather.Rain) DrawRainStrokes(p, rainStrokes, w, h);
@@ -458,6 +463,43 @@ namespace YoonseulFishing.Rendering
             FillCircle(p, Tf(-31, -3), 1.8f * 1.2f, new Color(0f, 0f, 0f, 1f)); // pupil
             FillPoly(p, White(0.6f), Tf(-16, 3), Tf(-6, 12 + tail * 0.3f), Tf(-4, 5)); // pectoral fin
         }
+
+        private static void DrawSplashParticles(Painter2D p, SplashParticle[] parts)
+        {
+            if (parts == null) return;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                SplashParticle q = parts[i];
+                if (q.Alpha <= 0f) continue;
+                Color col = WithAlpha(q.Color, q.Alpha);
+                float r = q.BaseSize;
+                double a = q.Rotation * Mathf.Deg2Rad;
+                if (q.ShapeType == 0) // triangle
+                {
+                    FillPoly(p, col, Pt(q.X, q.Y, r, a), Pt(q.X, q.Y, r, a + 2.0943951), Pt(q.X, q.Y, r, a + 4.1887902));
+                }
+                else if (q.ShapeType == 1) // diamond
+                {
+                    FillPoly(p, col, Pt(q.X, q.Y, r * 1.3f, a), Pt(q.X, q.Y, r * 0.7f, a + 1.5707963),
+                        Pt(q.X, q.Y, r * 1.3f, a + 3.1415927), Pt(q.X, q.Y, r * 0.7f, a + 4.712389));
+                }
+                else // hexagon
+                {
+                    p.fillColor = col;
+                    p.BeginPath();
+                    for (int k = 0; k < 6; k++)
+                    {
+                        Vector2 pt = Pt(q.X, q.Y, r, a + k * 1.0471976);
+                        if (k == 0) p.MoveTo(pt); else p.LineTo(pt);
+                    }
+                    p.ClosePath();
+                    p.Fill();
+                }
+            }
+        }
+
+        private static Vector2 Pt(float cx, float cy, float r, double ang)
+            => new Vector2(cx + r * (float)Math.Cos(ang), cy + r * (float)Math.Sin(ang));
 
         private static void DrawWindStrokes(Painter2D p, WindStroke[] strokes, float w, float h)
         {
