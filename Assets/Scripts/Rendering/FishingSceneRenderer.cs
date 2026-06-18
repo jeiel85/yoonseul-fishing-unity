@@ -39,6 +39,9 @@ namespace YoonseulFishing.Rendering
         private VisualElement _scene;
         private ScenePainter.Star[] _stars;
         private ScenePainter.Sparkle[] _sparkles;
+        private ScenePainter.AtmMote[] _motes;
+        private ScenePainter.WindStroke[] _windStrokes;
+        private ScenePainter.RainStroke[] _rainStrokes;
         private float _startTime;
 
         /// <summary>Set by the bootstrap (Phase 6) from the time-of-day observable.</summary>
@@ -79,7 +82,35 @@ namespace YoonseulFishing.Rendering
 
         private void Update()
         {
+            AdvanceWeather();
             _scene?.MarkDirtyRepaint(); // re-issue draw each frame to animate
+        }
+
+        // Drifts the wind streaks rightward and the rain streaks downward, wrapping
+        // each back around (matching the original's per-tick advance).
+        private void AdvanceWeather()
+        {
+            if (_windStrokes != null)
+            {
+                for (int i = 0; i < _windStrokes.Length; i++)
+                {
+                    _windStrokes[i].X += _windStrokes[i].Speed;
+                    if (_windStrokes[i].X > 1.15f) _windStrokes[i].X = -0.2f;
+                }
+            }
+
+            if (previewWeather == Weather.Rain && _rainStrokes != null)
+            {
+                for (int i = 0; i < _rainStrokes.Length; i++)
+                {
+                    _rainStrokes[i].Y += _rainStrokes[i].Speed;
+                    if (_rainStrokes[i].Y > 1.1f)
+                    {
+                        _rainStrokes[i].Y = -0.05f;
+                        _rainStrokes[i].X = Random.value;
+                    }
+                }
+            }
         }
 
         private void OnGenerateVisualContent(MeshGenerationContext ctx)
@@ -87,7 +118,8 @@ namespace YoonseulFishing.Rendering
             Rect rect = _scene.contentRect;
             long ticks = (long)((Time.time - _startTime) * 1000f);
             ScenePainter.DrawScene(ctx.painter2D, rect, ticks, previewTime, previewWeather,
-                previewFishingState, bobberX, bobberY, _stars, _sparkles);
+                previewFishingState, bobberX, bobberY, _stars, _sparkles,
+                _windStrokes, _rainStrokes, _motes);
         }
 
         private void GenerateDecor()
@@ -115,6 +147,51 @@ namespace YoonseulFishing.Rendering
                     RelY = 0.55f + Random.value * 0.4f,         // on the water band
                     ScaleFactor = 0.6f + Random.value * 0.8f,
                     Phase = Random.value * 6.28318f,
+                };
+            }
+
+            // Dreamy bokeh motes (depth = parallax/DOF: 0 far/faint, 1 near/bright).
+            _motes = new ScenePainter.AtmMote[26];
+            for (int i = 0; i < _motes.Length; i++)
+            {
+                float depth = Random.value;
+                _motes[i] = new ScenePainter.AtmMote
+                {
+                    RelX = Random.value,
+                    BaseY = Random.value,
+                    Radius = 7f + depth * 30f,
+                    Depth = depth,
+                    Phase = Random.value * 6.2832f,
+                    DriftSpeed = 0.006f + depth * 0.018f,
+                    SwayAmp = 0.008f + depth * 0.022f,
+                };
+            }
+
+            // Ambient wind streaks.
+            _windStrokes = new ScenePainter.WindStroke[8];
+            for (int i = 0; i < _windStrokes.Length; i++)
+            {
+                _windStrokes[i] = new ScenePainter.WindStroke
+                {
+                    X = Random.value,
+                    Y = 0.15f + Random.value * 0.45f,
+                    Length = 60f + Random.value * 100f,
+                    Width = 1.5f + Random.value * 1.5f,
+                    Speed = 0.003f + Random.value * 0.004f,
+                    Opacity = 0.12f + Random.value * 0.18f,
+                };
+            }
+
+            // Rain streaks (only drawn when weather is Rain).
+            _rainStrokes = new ScenePainter.RainStroke[35];
+            for (int i = 0; i < _rainStrokes.Length; i++)
+            {
+                _rainStrokes[i] = new ScenePainter.RainStroke
+                {
+                    X = Random.value,
+                    Y = Random.value,
+                    Length = 15f + Random.value * 25f,
+                    Speed = 0.012f + Random.value * 0.010f,
                 };
             }
         }

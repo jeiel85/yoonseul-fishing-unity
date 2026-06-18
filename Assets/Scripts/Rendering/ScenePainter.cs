@@ -63,6 +63,9 @@ namespace YoonseulFishing.Rendering
         /// <summary>Lightweight value types for the procedurally generated decor.</summary>
         public struct Star { public float RelX, RelY; public float TwinkleSpeed; public bool Big; }
         public struct Sparkle { public float RelX, RelY; public float ScaleFactor; public float Phase; }
+        public struct WindStroke { public float X, Y, Length, Width, Speed, Opacity; }
+        public struct RainStroke { public float X, Y, Length, Speed; }
+        public struct AtmMote { public float RelX, BaseY, Radius, Depth, Phase, DriftSpeed, SwayAmp; }
 
         /// <summary>
         /// Draws the full background scene into <paramref name="p"/> over
@@ -70,7 +73,8 @@ namespace YoonseulFishing.Rendering
         /// <paramref name="ticks"/> is elapsed milliseconds (drives animation).
         /// </summary>
         public static void DrawScene(Painter2D p, Rect rect, long ticks, TimeOfDay time, Weather weather,
-            FishingState fishingState, float bobberX, float bobberY, Star[] stars, Sparkle[] sparkles)
+            FishingState fishingState, float bobberX, float bobberY, Star[] stars, Sparkle[] sparkles,
+            WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes)
         {
             float w = rect.width;
             float h = rect.height;
@@ -100,8 +104,19 @@ namespace YoonseulFishing.Rendering
             // 6. Rolling lake fog during mist weather.
             if (weather == Weather.Mist) DrawMist(p, ticks, w, h);
 
-            // 7. Wooden boat + fisherman (+ cast line once fishing).
+            // 7. Ambient wind streaks.
+            DrawWindStrokes(p, windStrokes, w, h);
+
+            // 8. Wooden boat + fisherman (+ cast line once fishing).
             DrawBoatAndFisherman(p, ticks, fishingState, bobberX, bobberY, w, h);
+
+            // 9. Falling rain streaks.
+            if (weather == Weather.Rain) DrawRainStrokes(p, rainStrokes, w, h);
+
+            // 10. Dreamy atmosphere overlay — bokeh motes / light bloom / horizon haze.
+            //     (vignette omitted: Painter2D has no radial gradient; bloom/haze use
+            //      normal-alpha bands since there is no additive blend.)
+            DrawAtmosphere(p, motes, ticks, time, AccentFor(time), weather, w, h);
         }
 
         // ------------------------------------------------------------------
@@ -405,6 +420,67 @@ namespace YoonseulFishing.Rendering
             p.lineCap = LineCap.Butt;
         }
 
+        private static void DrawWindStrokes(Painter2D p, WindStroke[] strokes, float w, float h)
+        {
+            if (strokes == null) return;
+            p.lineCap = LineCap.Round;
+            for (int i = 0; i < strokes.Length; i++)
+            {
+                WindStroke ws = strokes[i];
+                float sx = ws.X * w, sy = ws.Y * h;
+                StrokeLine(p, new Vector2(sx, sy), new Vector2(sx + ws.Length, sy + ws.Length * 0.05f),
+                    White(ws.Opacity), ws.Width);
+            }
+            p.lineCap = LineCap.Butt;
+        }
+
+        private static void DrawRainStrokes(Painter2D p, RainStroke[] strokes, float w, float h)
+        {
+            if (strokes == null) return;
+            for (int i = 0; i < strokes.Length; i++)
+            {
+                RainStroke rs = strokes[i];
+                if (rs.Y < 0f || rs.Y > 1.1f) continue;
+                float sx = rs.X * w, sy = rs.Y * h;
+                StrokeLine(p, new Vector2(sx, sy), new Vector2(sx - 4f, sy + rs.Length), White(0.22f), 1.5f);
+            }
+        }
+
+        private static void DrawAtmosphere(Painter2D p, AtmMote[] motes, long ticks, TimeOfDay time, Color accent, Weather weather, float w, float h)
+        {
+            float t = ticks * 0.001f;
+            Color moteColor = time == TimeOfDay.Day ? Rgb(0xFFF6DF)
+                            : time == TimeOfDay.Sunset ? Rgb(0xFFE1B0)
+                            : Rgb(0xCBDDFF);
+            float weatherDamp = weather == Weather.Rain ? 0.6f : 1f;
+
+            // A. Soft light bloom from the sky (accent fading out over the top 45%).
+            FillVerticalAlphaFade(p, new Rect(0, 0, w, h * 0.45f), accent, 0.10f, 0f, 16);
+
+            // B. Horizon depth haze (peaks at the waterline, fades both ways).
+            FillHorizonHaze(p, w, h * 0.5f, h * 0.12f, accent, 0.13f, 16);
+
+            // C. Bokeh light motes — gentle upward drift + sway + twinkle.
+            if (motes != null)
+            {
+                for (int i = 0; i < motes.Length; i++)
+                {
+                    AtmMote m = motes[i];
+                    float y = (((m.BaseY - t * m.DriftSpeed) % 1f) + 1f) % 1f;
+                    float sway = Mathf.Sin(t * (0.4f + m.Depth) + m.Phase) * m.SwayAmp;
+                    float cx = ((((m.RelX + sway) % 1f) + 1f) % 1f) * w;
+                    float cy = y * h;
+                    float twinkle = 0.55f + 0.45f * Mathf.Sin(t * 1.2f + m.Phase * 1.7f);
+                    float a = (0.05f + 0.11f * m.Depth) * twinkle * weatherDamp;
+                    float r = m.Radius * (0.7f + 0.6f * m.Depth);
+                    FillCircle(p, new Vector2(cx, cy), r, WithAlpha(moteColor, a));
+                }
+            }
+        }
+
+        private static Color AccentFor(TimeOfDay t) =>
+            t == TimeOfDay.Day ? Rgb(0xE2F3F0) : t == TimeOfDay.Sunset ? Rgb(0xFFD1B3) : Rgb(0xD3E2F2);
+
         // ------------------------------------------------------------------
         //  Painter2D helpers
         // ------------------------------------------------------------------
@@ -469,6 +545,34 @@ namespace YoonseulFishing.Rendering
                 float y0 = area.yMin + area.height * (i / (float)bands);
                 float y1 = area.yMin + area.height * ((i + 1) / (float)bands);
                 FillRect(p, Rect.MinMaxRect(area.xMin, y0, area.xMax, y1), c);
+            }
+        }
+
+        /// <summary>Bands of one colour whose alpha fades from <paramref name="aTop"/> to <paramref name="aBottom"/>.</summary>
+        private static void FillVerticalAlphaFade(Painter2D p, Rect area, Color color, float aTop, float aBottom, int bands)
+        {
+            for (int i = 0; i < bands; i++)
+            {
+                float f = (i + 0.5f) / bands;
+                float a = Mathf.Lerp(aTop, aBottom, f);
+                float y0 = area.yMin + area.height * (i / (float)bands);
+                float y1 = area.yMin + area.height * ((i + 1) / (float)bands);
+                FillRect(p, Rect.MinMaxRect(area.xMin, y0, area.xMax, y1), WithAlpha(color, a));
+            }
+        }
+
+        /// <summary>A haze band centred on <paramref name="centerY"/> whose alpha peaks in the middle and fades to 0 at the edges.</summary>
+        private static void FillHorizonHaze(Painter2D p, float w, float centerY, float band, Color color, float peakAlpha, int bands)
+        {
+            float top = centerY - band;
+            float total = band * 2f;
+            for (int i = 0; i < bands; i++)
+            {
+                float f = (i + 0.5f) / bands;
+                float tri = 1f - Mathf.Abs(f - 0.5f) * 2f; // triangular falloff
+                float y0 = top + total * (i / (float)bands);
+                float y1 = top + total * ((i + 1) / (float)bands);
+                FillRect(p, Rect.MinMaxRect(0f, y0, w, y1), WithAlpha(color, peakAlpha * tri));
             }
         }
 

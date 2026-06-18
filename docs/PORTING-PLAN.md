@@ -93,8 +93,9 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
 - [~] **Phase 4 — 절차적 씬 렌더링** *(진행 중)*: `Rendering/ScenePainter.cs`(Painter2D
       드로) + `Rendering/FishingSceneRenderer.cs`(UI Toolkit 패널 호스트 + 애니메이션 틱
       + preview 시간/날씨). **1단계 배경 완료**: 하늘(띠 그라데이션)·별·구름·해/달·산·
-      수면 5겹 파동·윤슬 + **찌·파문(8각 stroke 링)·안개 + 보트·어부·낚싯대·낚싯줄
-      (베지어)**. **남은 것**: 점프 물고기·물보라 입자·비/바람 stroke·additive 대기 오버레이.
+      수면 5겹 파동·윤슬 + **찌·파문·안개 + 보트·어부·낚싯대·낚싯줄(베지어) + 바람·비
+      streak + 대기 오버레이(보케 모트·블룸·안개띠)**. **남은 것**: 점프 물고기·물보라
+      입자(SPLASHING 순간). ⚠️ additive/라디얼 미지원 → 대기는 normal-alpha 근사, 비네팅 생략.
       ⚠️ **Painter2D는 그라데이션/블렌드모드/라디얼 미지원** → 띠 보간 + 단색 facet로
       대응(로우폴리 화풍에 오히려 적합), additive 대기 오버레이는 vertex 메시로 추후.
       육안 검증 필요 — PanelSettings 1회 셋업 후 Play.
