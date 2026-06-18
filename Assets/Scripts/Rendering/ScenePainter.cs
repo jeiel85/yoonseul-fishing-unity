@@ -76,7 +76,7 @@ namespace YoonseulFishing.Rendering
         public static void DrawScene(Painter2D p, Rect rect, long ticks, TimeOfDay time, Weather weather,
             FishingState fishingState, float bobberX, float bobberY, FishSpecies splashFish, float splashProgress,
             Star[] stars, Sparkle[] sparkles, WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes,
-            SplashParticle[] particles)
+            SplashParticle[] particles, float rhythmScale, bool rhythmActive)
         {
             float w = rect.width;
             float h = rect.height;
@@ -132,6 +132,9 @@ namespace YoonseulFishing.Rendering
             //     (vignette omitted: Painter2D has no radial gradient; bloom/haze use
             //      normal-alpha bands since there is no additive blend.)
             DrawAtmosphere(p, motes, ticks, time, AccentFor(time), weather, w, h);
+
+            // 11. Reeling rhythm-timing ring — drawn on top of everything.
+            DrawRhythmRing(p, fishingState, rhythmScale, rhythmActive, bobberX, bobberY, w, h);
         }
 
         // ------------------------------------------------------------------
@@ -500,6 +503,36 @@ namespace YoonseulFishing.Rendering
 
         private static Vector2 Pt(float cx, float cy, float r, double ang)
             => new Vector2(cx + r * (float)Math.Cos(ang), cy + r * (float)Math.Sin(ang));
+
+        // Reeling mini-game: a contracting ring the player taps when it overlaps the
+        // sweet-spot band (GameController's PERFECT window is scale 0.23–0.43).
+        private static void DrawRhythmRing(Painter2D p, FishingState state, float scale, bool active,
+            float bobberX, float bobberY, float w, float h)
+        {
+            if (state != FishingState.Reeling || !active) return;
+
+            float cx = bobberX * w;
+            float cy = bobberY * h - 40f; // a little above the bobber
+            const float maxR = 56f;
+
+            // Sweet-spot target band (faint).
+            StrokeCircleFull(p, cx, cy, maxR * 0.23f, new Color(1f, 1f, 1f, 0.35f), 2f);
+            StrokeCircleFull(p, cx, cy, maxR * 0.43f, new Color(1f, 1f, 1f, 0.35f), 2f);
+
+            // Contracting ring (turns green inside the sweet spot).
+            bool inSweet = scale >= 0.23f && scale <= 0.43f;
+            Color col = inSweet ? new Color(0.55f, 1f, 0.7f, 0.95f) : new Color(1f, 1f, 1f, 0.85f);
+            StrokeCircleFull(p, cx, cy, maxR * Mathf.Clamp01(scale), col, 3.5f);
+        }
+
+        private static void StrokeCircleFull(Painter2D p, float cx, float cy, float r, Color color, float width)
+        {
+            p.strokeColor = color;
+            p.lineWidth = width;
+            p.BeginPath();
+            p.Arc(new Vector2(cx, cy), r, new Angle(0f, AngleUnit.Degree), new Angle(360f, AngleUnit.Degree));
+            p.Stroke();
+        }
 
         private static void DrawWindStrokes(Painter2D p, WindStroke[] strokes, float w, float h)
         {

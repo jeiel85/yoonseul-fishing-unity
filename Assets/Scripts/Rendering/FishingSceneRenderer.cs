@@ -45,6 +45,8 @@ namespace YoonseulFishing.Rendering
         private ScenePainter.RainStroke[] _rainStrokes;
         private FishSpecies _splashFish;
         private float _splashProgress;
+        private float _rhythmScale = 1f;
+        private bool _rhythmActive;
         private ScenePainter.SplashParticle[] _particles;
         private Rect _lastRect;
         private FishingState _prevState = FishingState.Idle;
@@ -64,6 +66,9 @@ namespace YoonseulFishing.Rendering
 
         /// <summary>Set by the bootstrap (Phase 6) for the SPLASHING leap (species + 0..1 progress).</summary>
         public void SetSplash(FishSpecies fish, float progress) { _splashFish = fish; _splashProgress = progress; }
+
+        /// <summary>Set by the bootstrap (Phase 6) from the rhythm observables (ring scale + active).</summary>
+        public void SetRhythm(float scale, bool active) { _rhythmScale = scale; _rhythmActive = active; }
 
         private void OnEnable()
         {
@@ -177,7 +182,7 @@ namespace YoonseulFishing.Rendering
 
             ScenePainter.DrawScene(ctx.painter2D, rect, ticks, previewTime, previewWeather,
                 previewFishingState, bobberX, bobberY, splashFish, splashProgress, _stars, _sparkles,
-                _windStrokes, _rainStrokes, _motes, _particles);
+                _windStrokes, _rainStrokes, _motes, _particles, _rhythmScale, _rhythmActive);
         }
 
         private void GenerateDecor()

@@ -66,6 +66,7 @@ namespace YoonseulFishing.Game
             sceneRenderer.SetWeather(_state.Weather.Value);
             sceneRenderer.SetFishingState(_state.FishingState.Value);
             sceneRenderer.SetBobber(_state.BobberPositionX.Value, _state.BobberPositionY.Value);
+            sceneRenderer.SetRhythm(_state.RhythmRingScale.Value, _state.RhythmBeatActive.Value);
 
             // Live updates from the observable game state.
             _state.TimeOfDay.Changed += sceneRenderer.SetTimeOfDay;
@@ -73,7 +74,15 @@ namespace YoonseulFishing.Game
             _state.FishingState.Changed += OnFishingStateChanged;
             _state.BobberPositionX.Changed += OnBobberMoved;
             _state.BobberPositionY.Changed += OnBobberMoved;
+            _state.RhythmRingScale.Changed += OnRhythmScaleChanged;
+            _state.RhythmBeatActive.Changed += OnRhythmBeatChanged;
         }
+
+        private void OnRhythmScaleChanged(float scale) =>
+            sceneRenderer.SetRhythm(scale, _state.RhythmBeatActive.Value);
+
+        private void OnRhythmBeatChanged(bool active) =>
+            sceneRenderer.SetRhythm(_state.RhythmRingScale.Value, active);
 
         private void OnBobberMoved(float _) =>
             sceneRenderer.SetBobber(_state.BobberPositionX.Value, _state.BobberPositionY.Value);
