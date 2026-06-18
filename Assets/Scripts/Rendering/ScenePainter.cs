@@ -6,30 +6,28 @@ using YoonseulFishing.Data;
 namespace YoonseulFishing.Rendering
 {
     /// <summary>
-    /// Procedural scene drawing with UI Toolkit <see cref="Painter2D"/> — the Unity
-    /// port of the background half of <c>HealingFishingGame.kt</c>'s Compose Canvas
-    /// (drawNightSky / drawPastelClouds / drawCelestialSource / drawMountainRange /
-    /// drawWaterLowPoly + the 윤슬 sparkles).
+    /// Procedural scene drawing with UI Toolkit <see cref="Painter2D"/>.
     ///
-    /// NOTE on fidelity: Painter2D fills are SOLID — it has no gradient brush,
-    /// radial gradient, or additive blend mode (unlike Compose's DrawScope). So
-    /// vertical gradients (sky, water tint) are approximated with interpolated
-    /// horizontal bands, which actually suits the game's low-poly look. Celestial
-    /// glow uses layered translucent circles (exactly as the original did). The
-    /// additive atmosphere overlay (bokeh motes / bloom / vignette) is deferred —
-    /// it needs vertex-coloured meshes to do faithfully.
+    /// COMPOSITION: a cozy top-down pond (the icon's mood) — water fills the frame,
+    /// the boat + fisherman are seen from above/behind, a grassy shore sits in one
+    /// corner with reeds and lily pads, fish glide as silhouettes under the surface,
+    /// and 윤슬 glints scatter across the water. Time of day and weather are reflected
+    /// in the water/light tint rather than a sky+horizon.
     ///
-    /// This is the background pass only. Foreground actors (boat, bobber, ripples,
-    /// jumping fish, particles, rain/wind) come in the next slice.
+    /// Painter2D fills are SOLID (no gradient brush / radial / additive blend), so
+    /// soft light is layered translucent shapes and gradients are band-approximated.
+    /// The DrawScene signature is intentionally stable so the renderer/bootstrap that
+    /// drive it need no changes.
     /// </summary>
     public static class ScenePainter
     {
-        // ---- Per-time-of-day palette (0xRRGGBB, opaque), straight from the original ----
+        // ---- Per-time-of-day water/shore/light palette ----
         public struct Palette
         {
-            public Color SkyTop, SkyMid, SkyBottom;
-            public Color WaterTop, WaterMid, WaterBottom;
-            public Color MountainPrimary, MountainSecondary;
+            public Color WaterBase, WaterLight;
+            public Color ShoreSand, ShoreGrass, Reed, Lily;
+            public Color LightTint; public float LightAlpha;
+            public Color Sparkle, Fish;
         }
 
         public static Palette PaletteFor(TimeOfDay time)
@@ -39,28 +37,32 @@ namespace YoonseulFishing.Rendering
                 case TimeOfDay.Sunset:
                     return new Palette
                     {
-                        SkyTop = Rgb(0x514068), SkyMid = Rgb(0xEB8A74), SkyBottom = Rgb(0xFCCC9B),
-                        WaterTop = Rgb(0xD4746A), WaterMid = Rgb(0xBA5E5C), WaterBottom = Rgb(0x863B48),
-                        MountainPrimary = Rgb(0x704A6B), MountainSecondary = Rgb(0x94618E),
+                        WaterBase = Rgb(0x49788E), WaterLight = Rgb(0x6E9AA8),
+                        ShoreSand = Rgb(0xB89663),
+                        ShoreGrass = Rgb(0x7A9A5C), Reed = Rgb(0x5A7A3C), Lily = Rgb(0x5A946A),
+                        LightTint = Rgb(0xFF9E5A), LightAlpha = 0.22f,
+                        Sparkle = Rgb(0xFFD9B0), Fish = Rgb(0x243A48),
                     };
                 case TimeOfDay.Night:
                     return new Palette
                     {
-                        SkyTop = Rgb(0x0D1224), SkyMid = Rgb(0x141A33), SkyBottom = Rgb(0x1B2342),
-                        WaterTop = Rgb(0x13192F), WaterMid = Rgb(0x1E2849), WaterBottom = Rgb(0x26325C),
-                        MountainPrimary = Rgb(0x19213D), MountainSecondary = Rgb(0x222C52),
+                        WaterBase = Rgb(0x16314A), WaterLight = Rgb(0x274A68),
+                        ShoreSand = Rgb(0x595440), ShoreGrass = Rgb(0x3E5742), Reed = Rgb(0x36502E), Lily = Rgb(0x2F5A40),
+                        LightTint = Rgb(0xAFC4E0), LightAlpha = 0.16f,
+                        Sparkle = Rgb(0xCFE2FA), Fish = Rgb(0x0C2436),
                     };
                 default: // Day
                     return new Palette
                     {
-                        SkyTop = Rgb(0xBFE3E8), SkyMid = Rgb(0xD1E9EC), SkyBottom = Rgb(0xE3F0F4),
-                        WaterTop = Rgb(0x90C2C8), WaterMid = Rgb(0x72A9B0), WaterBottom = Rgb(0x558E95),
-                        MountainPrimary = Rgb(0x85AFAF), MountainSecondary = Rgb(0x9EBFBF),
+                        WaterBase = Rgb(0x4FA1B5), WaterLight = Rgb(0x6BBBD0),
+                        ShoreSand = Rgb(0xCBB180), ShoreGrass = Rgb(0x8FB76A), Reed = Rgb(0x5E8B3E), Lily = Rgb(0x57A368),
+                        LightTint = Rgb(0xFFE8C0), LightAlpha = 0.13f,
+                        Sparkle = Rgb(0xFFFFFF), Fish = Rgb(0x1F4658),
                     };
             }
         }
 
-        /// <summary>Lightweight value types for the procedurally generated decor.</summary>
+        // Decor value types (generated + animated by FishingSceneRenderer).
         public struct Star { public float RelX, RelY; public float TwinkleSpeed; public bool Big; }
         public struct Sparkle { public float RelX, RelY; public float ScaleFactor; public float Phase; }
         public struct WindStroke { public float X, Y, Length, Width, Speed, Opacity; }
@@ -68,51 +70,41 @@ namespace YoonseulFishing.Rendering
         public struct AtmMote { public float RelX, BaseY, Radius, Depth, Phase, DriftSpeed, SwayAmp; }
         public struct SplashParticle { public float X, Y, Vx, Vy, BaseSize, Alpha, Rotation, RotationSpeed; public int ShapeType; public Color Color; }
 
-        /// <summary>
-        /// Draws the full background scene into <paramref name="p"/> over
-        /// <paramref name="rect"/> (the element's content rect, origin top-left).
-        /// <paramref name="ticks"/> is elapsed milliseconds (drives animation).
-        /// </summary>
+        // Boat anchor (relative to the frame) — fisherman casts toward the bobber.
+        private const float BoatX = 0.42f;
+        private const float BoatY = 0.50f;
+
         public static void DrawScene(Painter2D p, Rect rect, long ticks, TimeOfDay time, Weather weather,
             FishingState fishingState, float bobberX, float bobberY, FishSpecies splashFish, float splashProgress,
             Star[] stars, Sparkle[] sparkles, WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes,
             SplashParticle[] particles, float rhythmScale, bool rhythmActive)
         {
-            float w = rect.width;
-            float h = rect.height;
+            float w = rect.width, h = rect.height;
             if (w <= 1f || h <= 1f) return;
-
             Palette pal = PaletteFor(time);
 
-            // 1. Sky backdrop — vertical 3-stop gradient (band-approximated).
-            FillVerticalGradient(p, new Rect(0, 0, w, h), pal.SkyTop, pal.SkyMid, pal.SkyBottom, 40);
+            // 1. Top-down water + a calm lighter centre + a soft directional light glow.
+            FillRect(p, new Rect(0, 0, w, h), pal.WaterBase);
+            FillEllipse(p, new Vector2(w * 0.5f, h * 0.45f), w * 0.6f, h * 0.62f, WithAlpha(pal.WaterLight, 0.55f), 28);
+            FillEllipse(p, new Vector2(w * 0.80f, h * 0.16f), 220f, 150f, WithAlpha(pal.LightTint, pal.LightAlpha), 28);
+            FillEllipse(p, new Vector2(w * 0.80f, h * 0.16f), 70f, 48f, WithAlpha(pal.LightTint, pal.LightAlpha * 1.6f), 24);
 
-            // Night stars / daytime clouds.
-            if (time == TimeOfDay.Night) DrawNightSky(p, stars, ticks, w, h, 1f);
-            else DrawPastelClouds(p, ticks, w, h, 1f);
+            // 2. Faint surface wind ripples.
+            DrawWindRipples(p, windStrokes, w, h);
 
-            // 2. Sun / moon.
-            DrawCelestialSource(p, time, h, w, pal.SkyTop);
+            // 3. Ambient fish gliding under the surface.
+            DrawAmbientFish(p, ticks, w, h, pal.Fish);
 
-            // 3. Low-poly mountains.
-            DrawMountainRange(p, pal.MountainPrimary, pal.MountainSecondary, w, h);
+            // 4. 윤슬 — shimmering glints across the water.
+            DrawSparkles(p, sparkles, ticks, time, weather, pal.Sparkle, w, h);
 
-            // 4. Water + 윤슬 sparkles.
-            DrawWaterLowPoly(p, pal, sparkles, ticks, time, weather, w, h);
+            // 5. Grassy shore corner (sand, grass, reeds, lily pads).
+            DrawShore(p, w, h, pal);
 
-            // 5. Bobber + ripples (only while actively fishing).
-            DrawBobberAndRipples(p, fishingState, bobberX, bobberY, ticks, weather, w, h);
+            // 6. Boat + fisherman (from above) + rod, line, bobber, ripples.
+            DrawBoatTopDown(p, ticks, fishingState, bobberX, bobberY, w, h, pal, weather);
 
-            // 6. Rolling lake fog during mist weather.
-            if (weather == Weather.Mist) DrawMist(p, ticks, w, h);
-
-            // 7. Ambient wind streaks.
-            DrawWindStrokes(p, windStrokes, w, h);
-
-            // 8. Wooden boat + fisherman (+ cast line once fishing).
-            DrawBoatAndFisherman(p, ticks, fishingState, bobberX, bobberY, w, h);
-
-            // 8b. Leaping fish during the SPLASHING moment (parabolic arc + flip past apex).
+            // 7. Leaping fish during the SPLASHING moment.
             if (fishingState == FishingState.Splashing && splashFish != null)
             {
                 float fishX = bobberX * w + (splashProgress - 0.5f) * 200f;
@@ -122,331 +114,187 @@ namespace YoonseulFishing.Rendering
                 DrawJumpingFish(p, splashFish, ticks, fishX, fishY, rot, splashProgress > 0.5f);
             }
 
-            // 8c. Water-splash particles (geometric shards).
+            // 8. Water-splash particles.
             DrawSplashParticles(p, particles);
 
-            // 9. Falling rain streaks.
+            // 9–10. Weather: drifting mist / falling rain.
+            if (weather == Weather.Mist) DrawMistPatches(p, ticks, w, h);
             if (weather == Weather.Rain) DrawRainStrokes(p, rainStrokes, w, h);
 
-            // 10. Dreamy atmosphere overlay — bokeh motes / light bloom / horizon haze.
-            //     (vignette omitted: Painter2D has no radial gradient; bloom/haze use
-            //      normal-alpha bands since there is no additive blend.)
-            DrawAtmosphere(p, motes, ticks, time, AccentFor(time), weather, w, h);
+            // 11. Dreamy floating light motes.
+            DrawMotes(p, motes, ticks, time, weather, w, h);
 
-            // 11. Reeling rhythm-timing ring — drawn on top of everything.
+            // 12. Reeling rhythm-timing ring (on top).
             DrawRhythmRing(p, fishingState, rhythmScale, rhythmActive, bobberX, bobberY, w, h);
         }
 
         // ------------------------------------------------------------------
-        //  Layers
+        //  Water life
         // ------------------------------------------------------------------
 
-        private static void DrawNightSky(Painter2D p, Star[] stars, long ticks, float w, float h, float alphaMul)
+        private static void DrawAmbientFish(Painter2D p, long ticks, float w, float h, Color fishCol)
         {
-            if (stars == null) return;
-            for (int i = 0; i < stars.Length; i++)
+            float t = ticks * 0.001f;
+            for (int i = 0; i < 4; i++)
             {
-                Star s = stars[i];
-                float phase = ticks * s.TwinkleSpeed;
-                float a = (0.35f + 0.6f * (0.5f + 0.5f * Mathf.Sin(phase))) * alphaMul;
-                FillCircle(p, new Vector2(s.RelX * w, s.RelY * h), s.Big ? 2.5f : 1.5f, White(a));
+                float baseX = (0.18f + 0.20f * i) * w;
+                float baseY = (0.26f + 0.16f * i) * h;
+                float dx = Mathf.Sin(t * (0.30f + 0.07f * i) + i) * (w * 0.12f);
+                float dy = Mathf.Cos(t * (0.22f + 0.05f * i) + i * 1.7f) * (h * 0.06f);
+                DrawFishSilhouette(p, baseX + dx, baseY + dy, 0.7f, dx < 0f, WithAlpha(fishCol, 0.32f));
             }
         }
 
-        private static void DrawPastelClouds(Painter2D p, long ticks, float w, float h, float alphaMul)
+        private static void DrawFishSilhouette(Painter2D p, float cx, float cy, float scale, bool faceLeft, Color col)
         {
-            float cloudSpeedX = (ticks * 0.015f) % w;
-            Vector2[] positions =
+            FillEllipse(p, new Vector2(cx, cy), 18f * scale, 7f * scale, col);
+            float tx = faceLeft ? cx + 15f * scale : cx - 15f * scale;
+            float tip = faceLeft ? cx + 29f * scale : cx - 29f * scale;
+            FillPoly(p, col, new Vector2(tx, cy), new Vector2(tip, cy - 8f * scale), new Vector2(tip, cy + 8f * scale));
+        }
+
+        private static void DrawSparkles(Painter2D p, Sparkle[] sparkles, long ticks, TimeOfDay time, Weather weather, Color baseCol, float w, float h)
+        {
+            if (sparkles == null) return;
+            float mul = weather == Weather.Rain ? RainSparkle(time) : weather == Weather.Mist ? MistSparkle(time) : ClearSparkle(time);
+            for (int i = 0; i < sparkles.Length; i++)
             {
-                new Vector2(200f, 150f),
-                new Vector2(w - 300f, 220f),
-                new Vector2(w / 2f, 100f),
-            };
-            Color c = White(0.25f * alphaMul);
-            foreach (var pos in positions)
-            {
-                float x = (pos.x + cloudSpeedX) % w;
-                FillCircle(p, new Vector2(x, pos.y), 35f, c);
-                FillCircle(p, new Vector2(x + 30f, pos.y + 10f), 50f, c);
-                FillCircle(p, new Vector2(x + 60f, pos.y), 35f, c);
+                Sparkle s = sparkles[i];
+                float spX = s.RelX * w, spY = s.RelY * h;
+                float brightness = 0.25f + 0.75f * (0.5f + 0.5f * Mathf.Sin(s.Phase + ticks * 0.0016f));
+                float len = 13f * s.ScaleFactor * brightness;
+                FillPoly(p, WithAlpha(baseCol, mul * brightness),
+                    new Vector2(spX - len, spY), new Vector2(spX, spY - 3f), new Vector2(spX + len, spY), new Vector2(spX, spY + 3f));
             }
         }
 
-        private static void DrawCelestialSource(Painter2D p, TimeOfDay time, float h, float w, Color skyTop)
-        {
-            if (time == TimeOfDay.Day)
-            {
-                var c = new Vector2(w * 0.8f, h * 0.18f);
-                FillCircle(p, c, 120f, Rgb(0xFFF7DB, 0.20f)); // outer glow
-                FillCircle(p, c, 65f, Rgb(0xFFF7DB, 0.9f));   // sun
-            }
-            else if (time == TimeOfDay.Sunset)
-            {
-                var c = new Vector2(w * 0.75f, h * 0.44f);
-                FillCircle(p, c, 150f, Rgb(0xFF6B6B, 0.25f)); // outer glow
-                FillCircle(p, c, 70f, Rgb(0xFF9B6B, 0.95f));  // sunset sun
-            }
-            else // Night — crescent moon (foreground disc minus an offset sky-coloured disc)
-            {
-                var c = new Vector2(w * 0.8f, h * 0.18f);
-                FillCircle(p, c, 80f, Rgb(0xFFF6B8, 0.1f));               // halo
-                FillCircle(p, c, 40f, Rgb(0xFFF6B8, 0.9f));              // moon disc
-                FillCircle(p, new Vector2(c.x - 14f, c.y - 4f), 40f, skyTop); // carve crescent
-            }
-        }
-
-        private static void DrawMountainRange(Painter2D p, Color primary, Color secondary, float w, float h)
-        {
-            // Far range
-            FillPoly(p, WithAlpha(primary, 0.6f),
-                new Vector2(0, h * 0.55f), new Vector2(w * 0.25f, h * 0.35f), new Vector2(w * 0.45f, h * 0.55f),
-                new Vector2(w * 0.72f, h * 0.28f), new Vector2(w, h * 0.55f), new Vector2(w, h), new Vector2(0, h));
-            // Far facet
-            FillPoly(p, WithAlpha(primary, 0.8f),
-                new Vector2(w * 0.25f, h * 0.35f), new Vector2(w * 0.45f, h * 0.55f), new Vector2(w * 0.25f, h * 0.55f));
-            // Near range (open path closed implicitly by Fill)
-            FillPoly(p, secondary,
-                new Vector2(0, h * 0.55f), new Vector2(w * 0.48f, h * 0.39f), new Vector2(w * 0.88f, h * 0.55f), new Vector2(w, h * 0.55f));
-            // Near facet
-            FillPoly(p, WithAlpha(secondary, 0.88f),
-                new Vector2(w * 0.48f, h * 0.39f), new Vector2(w * 0.88f, h * 0.55f), new Vector2(w * 0.48f, h * 0.55f));
-        }
-
-        private static void DrawWaterLowPoly(Painter2D p, Palette pal, Sparkle[] sparkles, long ticks,
-            TimeOfDay time, Weather weather, float w, float h)
-        {
-            float waterHorizon = h * 0.52f;
-            float waterHeight = h - waterHorizon;
-
-            // Base fill.
-            FillRect(p, new Rect(0, waterHorizon, w, waterHeight), pal.WaterTop);
-
-            // 5 jagged low-poly wave strips, tinted top→bottom.
-            const int rows = 5;
-            const int segments = 8;
-            for (int row = 1; row <= rows; row++)
-            {
-                float rowY = waterHorizon + (waterHeight / rows) * row;
-                float prevRowY = waterHorizon + (waterHeight / rows) * (row - 1);
-
-                float mix = row / (float)rows;
-                Color strip = LerpColor(pal.WaterTop, pal.WaterMid, mix);
-
-                p.fillColor = strip;
-                p.BeginPath();
-                p.MoveTo(new Vector2(0, prevRowY));
-                float widthStep = w / segments;
-                for (int seg = 0; seg <= segments; seg++)
-                {
-                    float currX = seg * widthStep;
-                    float waveAmp = 12f * (row * 0.5f);
-                    float waveProgress = (ticks * 0.0019f) + (seg * 0.5f);
-                    float currY = prevRowY + Mathf.Sin(waveProgress) * waveAmp;
-                    p.LineTo(new Vector2(currX, currY));
-                }
-                p.LineTo(new Vector2(w, rowY));
-                p.LineTo(new Vector2(0, rowY));
-                p.ClosePath();
-                p.Fill();
-            }
-
-            // 윤슬 — shimmering diamonds along the surface.
-            if (sparkles != null)
-            {
-                float weatherMul = weather == Weather.Rain ? RainSparkle(time)
-                                 : weather == Weather.Mist ? MistSparkle(time)
-                                 : ClearSparkle(time);
-                Color baseCol = time == TimeOfDay.Day ? Rgb(0xFFF4D4)
-                              : time == TimeOfDay.Sunset ? Rgb(0xFFCCAA)
-                              : Rgb(0xD7EAFE);
-
-                for (int i = 0; i < sparkles.Length; i++)
-                {
-                    Sparkle s = sparkles[i];
-                    float spX = s.RelX * w;
-                    float spY = s.RelY * h;
-                    float brightness = 0.25f + 0.75f * (0.5f + 0.5f * Mathf.Sin(s.Phase + ticks * 0.0016f));
-                    float baseLen = 14f * s.ScaleFactor * brightness;
-                    Color col = WithAlpha(baseCol, weatherMul * brightness);
-                    FillPoly(p, col,
-                        new Vector2(spX - baseLen, spY), new Vector2(spX, spY - 3f),
-                        new Vector2(spX + baseLen, spY), new Vector2(spX, spY + 3f));
-                }
-            }
-        }
-
-        // Sparkle alpha multipliers (clear/mist/rain) per time of day, from the original.
-        private static float ClearSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.75f : t == TimeOfDay.Sunset ? 0.8f : 0.85f;
-        private static float MistSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.5f : t == TimeOfDay.Sunset ? 0.55f : 0.6f;
-        private static float RainSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.35f : t == TimeOfDay.Sunset ? 0.4f : 0.4f;
+        private static float ClearSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.7f : t == TimeOfDay.Sunset ? 0.75f : 0.8f;
+        private static float MistSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.45f : t == TimeOfDay.Sunset ? 0.5f : 0.55f;
+        private static float RainSparkle(TimeOfDay t) => t == TimeOfDay.Day ? 0.3f : 0.38f;
 
         // ------------------------------------------------------------------
-        //  Foreground: bobber + ripples + mist (slice 2)
+        //  Shore (grassy bank in the bottom-left corner)
         // ------------------------------------------------------------------
 
-        private static void DrawBobberAndRipples(Painter2D p, FishingState state, float bobberX, float bobberY,
-            long ticks, Weather weather, float w, float h)
+        private static void DrawShore(Painter2D p, float w, float h, Palette pal)
         {
-            if (state == FishingState.Idle || state == FishingState.Casting) return;
-
-            float bx = bobberX * w;
-            float by = bobberY * h;
-
-            double bobValue = ticks * 0.0035;
-            float bobOffset =
-                state == FishingState.Waiting ? Mathf.Sin((float)bobValue) * 5f :
-                state == FishingState.Nibble ? Mathf.Sin((float)(bobValue * 3.0)) * 10f :
-                state == FishingState.Bite ? 16f : 0f;
-
-            // Expanding concentric ripple — wider/faster under rain.
-            float ripplePhase = (ticks * (weather == Weather.Rain ? 0.0022f : 0.0015f)) % 1.0f;
-            StrokeRipple(p, new Vector2(bx, by),
-                16f + ripplePhase * (weather == Weather.Rain ? 75f : 60f),
-                White(0.6f * (1f - ripplePhase)), 2.5f, 8);
-
-            if (state == FishingState.Nibble || state == FishingState.Bite)
-            {
-                float micro = (ticks * 0.0035f) % 1.0f;
-                StrokeRipple(p, new Vector2(bx, by), 8f + micro * 30f, White(0.8f * (1f - micro)), 3.5f, 6);
-            }
-
-            // Physical bobber — hidden while fully plunged under on BITE.
-            if (state != FishingState.Bite)
-            {
-                var topR = new Vector2(bx, by + bobOffset - 15f);
-                var botR = new Vector2(bx, by + bobOffset);
-                FillCircle(p, topR, 5.5f, Rgb(0xFF3C3C));                                         // red tip
-                StrokeLine(p, topR, botR, White(1f), 3f);                                         // white stem
-                FillEllipse(p, new Vector2(bx, by + bobOffset - 3f), 6f, 5f, White(1f));          // white body
-                FillEllipse(p, new Vector2(bx, by + bobOffset - 5.5f), 6f, 2.5f, Rgb(0xFF3C3C));  // red band on top half
-            }
-        }
-
-        private static void DrawMist(Painter2D p, long ticks, float w, float h)
-        {
-            float mistY = h * 0.52f;
-            for (int layer = 0; layer < 3; layer++)
-            {
-                float layerY = mistY + layer * 16f;
-                p.fillColor = White(0.08f - layer * 0.02f);
-                p.BeginPath();
-                p.MoveTo(new Vector2(0, layerY - 15f));
-                const int steps = 6;
-                float stepW = w / steps;
-                for (int step = 0; step <= steps; step++)
-                {
-                    float px = step * stepW;
-                    float py = layerY + Mathf.Sin((ticks * 0.0006f) + step * 1.5f + layer * 2f) * 12f;
-                    p.LineTo(new Vector2(px, py));
-                }
-                p.LineTo(new Vector2(w, layerY + 50f));
-                p.LineTo(new Vector2(0, layerY + 50f));
-                p.ClosePath();
-                p.Fill();
-            }
-        }
-
-        private static void StrokeRipple(Painter2D p, Vector2 center, float radius, Color color, float strokeWidth, int segments)
-        {
-            p.strokeColor = color;
-            p.lineWidth = strokeWidth;
+            // Sand.
+            p.fillColor = pal.ShoreSand;
             p.BeginPath();
-            for (int i = 0; i < segments; i++)
-            {
-                double ang = i * 2.0 * Math.PI / segments;
-                float x = center.x + radius * (float)Math.Cos(ang);
-                float y = center.y + (radius * 0.4f) * (float)Math.Sin(ang); // vertical flatten for water perspective
-                if (i == 0) p.MoveTo(new Vector2(x, y)); else p.LineTo(new Vector2(x, y));
-            }
+            p.MoveTo(new Vector2(0, h));
+            p.LineTo(new Vector2(0, h * 0.60f));
+            p.QuadraticCurveTo(new Vector2(w * 0.14f, h * 0.63f), new Vector2(w * 0.21f, h * 0.82f));
+            p.QuadraticCurveTo(new Vector2(w * 0.25f, h * 0.96f), new Vector2(w * 0.15f, h));
             p.ClosePath();
-            p.Stroke();
+            p.Fill();
+
+            // Grass over the sand.
+            p.fillColor = pal.ShoreGrass;
+            p.BeginPath();
+            p.MoveTo(new Vector2(0, h));
+            p.LineTo(new Vector2(0, h * 0.62f));
+            p.QuadraticCurveTo(new Vector2(w * 0.11f, h * 0.65f), new Vector2(w * 0.16f, h * 0.82f));
+            p.QuadraticCurveTo(new Vector2(w * 0.19f, h * 0.93f), new Vector2(w * 0.11f, h));
+            p.ClosePath();
+            p.Fill();
+
+            // Reeds.
+            p.strokeColor = pal.Reed;
+            p.lineWidth = 3f;
+            p.lineCap = LineCap.Round;
+            StrokeLine(p, new Vector2(w * 0.085f, h * 0.70f), new Vector2(w * 0.075f, h * 0.58f), pal.Reed, 3f);
+            StrokeLine(p, new Vector2(w * 0.115f, h * 0.72f), new Vector2(w * 0.128f, h * 0.60f), pal.Reed, 3f);
+            StrokeLine(p, new Vector2(w * 0.145f, h * 0.76f), new Vector2(w * 0.138f, h * 0.64f), pal.Reed, 3f);
+            p.lineCap = LineCap.Butt;
+
+            // Lily pads (with a notch of water).
+            DrawLilyPad(p, new Vector2(w * 0.30f, h * 0.86f), 22f, pal);
+            DrawLilyPad(p, new Vector2(w * 0.20f, h * 0.97f), 17f, pal);
         }
 
-        // Compose drew the boat in a translated+rotated local space (withTransform);
-        // Painter2D has no transform stack, so we map each local point to world via Tf().
-        private static void DrawBoatAndFisherman(Painter2D p, long ticks, FishingState state,
-            float bobberX, float bobberY, float w, float h)
+        private static void DrawLilyPad(Painter2D p, Vector2 c, float r, Palette pal)
         {
-            float baseX = w * 0.36f;
-            float baseY = h * 0.61f;
-            float bobTime = ticks * 0.0018f;
-            float swayY = Mathf.Sin(bobTime) * 4.5f;
-            float rollDeg = Mathf.Cos(bobTime) * 1.5f; // gentle roll
-            float rad = rollDeg * Mathf.Deg2Rad;
-            float cs = Mathf.Cos(rad), sn = Mathf.Sin(rad);
+            FillEllipse(p, c, r, r * 0.62f, pal.Lily);
+            FillPoly(p, pal.WaterBase, c, new Vector2(c.x + r, c.y - r * 0.42f), new Vector2(c.x + r, c.y + r * 0.42f));
+        }
 
-            Vector2 Tf(float lx, float ly)
+        // ------------------------------------------------------------------
+        //  Boat (top-down) + fisherman + rod + line + bobber
+        // ------------------------------------------------------------------
+
+        private static void DrawBoatTopDown(Painter2D p, long ticks, FishingState state, float bobberX, float bobberY,
+            float w, float h, Palette pal, Weather weather)
+        {
+            float bx = w * BoatX;
+            float by = h * BoatY + Mathf.Sin(ticks * 0.0018f) * 4f; // gentle bob
+
+            // Shadow on the water.
+            FillEllipse(p, new Vector2(bx, by + 20f), 66f, 18f, new Color(0f, 0f, 0f, 0.12f));
+
+            // Canoe seen from above: pointed ends + hull + cavity + rim.
+            FillPoly(p, Rgb(0x9C6B36), new Vector2(bx - 78f, by), new Vector2(bx - 60f, by - 12f), new Vector2(bx - 60f, by + 12f));
+            FillPoly(p, Rgb(0x9C6B36), new Vector2(bx + 78f, by), new Vector2(bx + 60f, by - 12f), new Vector2(bx + 60f, by + 12f));
+            FillEllipse(p, new Vector2(bx, by), 64f, 28f, Rgb(0xA9743C), 30);
+            StrokeCircleEllipse(p, bx, by, 64f, 28f, Rgb(0xD8B07E), 3.5f);
+            FillEllipse(p, new Vector2(bx, by), 52f, 19f, Rgb(0x5E3F23), 28);
+
+            // Fisherman from behind: shoulders (white shirt) + straw hat.
+            FillEllipse(p, new Vector2(bx, by + 4f), 22f, 16f, Rgb(0xF2F2EF));
+            FillEllipse(p, new Vector2(bx, by - 4f), 26f, 16f, Rgb(0xE3C788)); // brim
+            FillEllipse(p, new Vector2(bx, by - 7f), 14f, 9f, Rgb(0xD4B26E));  // crown
+
+            // Rod points from the hands toward the bobber.
+            float bobx = bobberX * w, boby = bobberY * h;
+            Vector2 hand = new Vector2(bx + 14f, by - 2f);
+            float dirx = bobx - hand.x, diry = boby - hand.y;
+            float dlen = Mathf.Sqrt(dirx * dirx + diry * diry);
+            if (dlen < 0.001f) { dirx = 0.6f; diry = 0.8f; dlen = 1f; }
+            dirx /= dlen; diry /= dlen;
+            Vector2 rodTip = new Vector2(hand.x + dirx * 60f, hand.y + diry * 60f);
+            StrokeLine(p, hand, rodTip, Rgb(0xC9B074), 3.5f);
+
+            // Cast line + bobber + ripples once fishing.
+            if (state != FishingState.Idle && state != FishingState.Casting)
             {
-                float rx = lx * cs - ly * sn;
-                float ry = lx * sn + ly * cs;
-                return new Vector2(baseX + rx, baseY + swayY + ry);
-            }
+                double bob = ticks * 0.0035;
+                float dip = state == FishingState.Waiting ? Mathf.Sin((float)bob) * 4f
+                          : state == FishingState.Nibble ? Mathf.Sin((float)(bob * 3.0)) * 9f
+                          : state == FishingState.Bite ? 14f : 0f;
 
-            p.lineCap = LineCap.Round;
-
-            // Shadow under the boat.
-            FillEllipse(p, Tf(0f, 26f), 80f, 11f, new Color(0f, 0f, 0f, 0.2f));
-
-            // Hollow canoe in low-poly facets.
-            FillPoly(p, Rgb(0x382312), Tf(-70, -2), Tf(-18, 11), Tf(60, -2), Tf(0, -5));   // inside cavity
-            FillPoly(p, Rgb(0xBE783A), Tf(-75, 0), Tf(-20, 15), Tf(65, 0), Tf(0, -6));     // hull
-            FillPoly(p, Rgb(0x8C5325), Tf(-75, 0), Tf(-20, 15), Tf(0, 4));                 // hull shadow
-            FillPoly(p, Rgb(0xE5B083), Tf(-75, 0), Tf(65, 0), Tf(55, -3), Tf(-65, -3));    // rim
-
-            // Fisherman.
-            FillPoly(p, Rgb(0x2E5B88), Tf(-16, 0), Tf(6, 0), Tf(8, -11), Tf(-18, -11));    // shorts
-            FillPoly(p, Rgb(0xFBFBFB), Tf(-18, -11), Tf(8, -11), Tf(2, -36), Tf(-12, -36)); // white shirt
-            FillCircle(p, Tf(-5, -36), 8.5f, Rgb(0x282828)); // hair
-            FillCircle(p, Tf(-5, -33), 6.5f, Rgb(0xEBC19F)); // neck/skin
-            StrokeLine(p, Tf(-11, -25), Tf(-1, -20), Rgb(0xFBFBFB), 6.5f); // sleeve
-            StrokeLine(p, Tf(-1, -20), Tf(4, -24), Rgb(0xEBC19F), 5.2f);   // forearm
-
-            // Straw hat (head centred at -5,-40).
-            FillEllipse(p, Tf(-5f, -34.5f), 22f, 4.5f, Rgb(0xE9CB99)); // brim
-            FillEllipse(p, Tf(-5f, -35f), 18f, 3.5f, Rgb(0xD6B57E));   // brim inner
-            FillPoly(p, Rgb(0x1C1C1C), Tf(-16, -46), Tf(6, -46), Tf(6, -39), Tf(-16, -39)); // black band
-            FillPoly(p, Rgb(0xE9CB99), Tf(-16, -57), Tf(6, -57), Tf(6, -46), Tf(-16, -46)); // crown
-            FillPoly(p, Rgb(0xD6B57E), Tf(-5, -57), Tf(6, -57), Tf(6, -46), Tf(-5, -46));   // crown shade
-
-            // Bamboo rod (rest pose; rod-bend animation wired in Phase 6).
-            var rodRoot = new Vector2(4f, -24f);
-            var rodTip = new Vector2(45f, -55f);
-            StrokeLine(p, Tf(rodRoot.x, rodRoot.y), Tf(rodTip.x, rodTip.y), Rgb(0xBBB189), 3.5f);
-            for (int step = 1; step <= 4; step++)
-            {
-                float fr = step / 4f;
-                float jx = rodRoot.x * (1f - fr) + rodTip.x * fr;
-                float jy = rodRoot.y * (1f - fr) + rodTip.y * fr;
-                FillCircle(p, Tf(jx, jy), 2.5f, Rgb(0x867E52)); // bamboo joints
-            }
-
-            // Fishing line — quadratic Bézier that sags down to the bobber.
-            if (state != FishingState.Idle)
-            {
-                float localBobberX = bobberX * w - baseX;
-                float localBobberY = bobberY * h - (baseY + swayY);
-                float ctrlX = (rodTip.x + localBobberX) * 0.5f;
-                float ctrlY = (rodTip.y + localBobberY) * 0.5f + 50f;
-                p.strokeColor = new Color(1f, 1f, 1f, 0.55f);
+                // Sagging line.
+                p.strokeColor = new Color(1f, 1f, 1f, 0.6f);
                 p.lineWidth = 1.2f;
                 p.BeginPath();
-                p.MoveTo(Tf(rodTip.x, rodTip.y));
-                p.QuadraticCurveTo(Tf(ctrlX, ctrlY), Tf(localBobberX, localBobberY));
+                p.MoveTo(rodTip);
+                p.QuadraticCurveTo(new Vector2((rodTip.x + bobx) * 0.5f, (rodTip.y + boby) * 0.5f + 26f), new Vector2(bobx, boby + dip));
                 p.Stroke();
-            }
 
-            p.lineCap = LineCap.Butt;
+                // Expanding ripple.
+                float rp = (ticks * (weather == Weather.Rain ? 0.0022f : 0.0015f)) % 1f;
+                StrokeRipple(p, new Vector2(bobx, boby + dip), 14f + rp * (weather == Weather.Rain ? 70f : 56f), White(0.55f * (1f - rp)), 2f, 10);
+                if (state == FishingState.Nibble || state == FishingState.Bite)
+                {
+                    float mr = (ticks * 0.0035f) % 1f;
+                    StrokeRipple(p, new Vector2(bobx, boby + dip), 8f + mr * 26f, White(0.8f * (1f - mr)), 3f, 8);
+                }
+                // Bobber (hidden when fully plunged on BITE).
+                if (state != FishingState.Bite)
+                {
+                    FillEllipse(p, new Vector2(bobx, boby + dip), 6f, 5f, Rgb(0xFF3C3C));
+                    FillEllipse(p, new Vector2(bobx, boby + dip + 1f), 4f, 3f, Rgb(0xFFFFFF));
+                }
+            }
         }
 
-        // Low-poly fish in mid-leap. The Compose caller wrapped this in
-        // withTransform(translate, scale 1.2, rotate, mirror-past-apex); here Tf bakes
-        // that mapping into each local vertex (mirror → rotate → scale 1.2 → translate).
+        // ------------------------------------------------------------------
+        //  Leaping fish (SPLASHING)
+        // ------------------------------------------------------------------
+
         private static void DrawJumpingFish(Painter2D p, FishSpecies fish, long ticks,
             float worldX, float worldY, float rotDeg, bool mirror)
         {
             float rad = rotDeg * Mathf.Deg2Rad;
             float cs = Mathf.Cos(rad), sn = Mathf.Sin(rad);
-
             Vector2 Tf(float lx, float ly)
             {
                 if (mirror) ly = -ly;
@@ -454,17 +302,15 @@ namespace YoonseulFishing.Rendering
                 float ry = (lx * sn + ly * cs) * 1.2f;
                 return new Vector2(worldX + rx, worldY + ry);
             }
-
-            float tail = Mathf.Sin(ticks * 0.012f) * 16f; // tail wag
+            float tail = Mathf.Sin(ticks * 0.012f) * 16f;
             Color body = fish.Color;
             Color belly = new Color(body.r * 0.82f, body.g * 0.82f, body.b * 0.82f, 1f);
-
-            FillPoly(p, WithAlpha(body, 0.95f), Tf(-45, 0), Tf(-10, -18), Tf(30, -5), Tf(45, -2), Tf(0, 2)); // upper body
-            FillPoly(p, belly, Tf(-45, 0), Tf(-12, 16), Tf(28, 6), Tf(45, -2), Tf(0, 2));                    // belly shade
-            FillPoly(p, WithAlpha(body, 0.75f), Tf(45, -2), Tf(62, -16 + tail), Tf(54, -2 + tail * 0.4f), Tf(62, 12 + tail)); // tail fin
-            FillCircle(p, Tf(-30, -3), 3.5f * 1.2f, White(1f));            // eye white
-            FillCircle(p, Tf(-31, -3), 1.8f * 1.2f, new Color(0f, 0f, 0f, 1f)); // pupil
-            FillPoly(p, White(0.6f), Tf(-16, 3), Tf(-6, 12 + tail * 0.3f), Tf(-4, 5)); // pectoral fin
+            FillPoly(p, WithAlpha(body, 0.95f), Tf(-45, 0), Tf(-10, -18), Tf(30, -5), Tf(45, -2), Tf(0, 2));
+            FillPoly(p, belly, Tf(-45, 0), Tf(-12, 16), Tf(28, 6), Tf(45, -2), Tf(0, 2));
+            FillPoly(p, WithAlpha(body, 0.75f), Tf(45, -2), Tf(62, -16 + tail), Tf(54, -2 + tail * 0.4f), Tf(62, 12 + tail));
+            FillCircle(p, Tf(-30, -3), 3.5f * 1.2f, White(1f));
+            FillCircle(p, Tf(-31, -3), 1.8f * 1.2f, new Color(0f, 0f, 0f, 1f));
+            FillPoly(p, White(0.6f), Tf(-16, 3), Tf(-6, 12 + tail * 0.3f), Tf(-4, 5));
         }
 
         private static void DrawSplashParticles(Painter2D p, SplashParticle[] parts)
@@ -477,16 +323,12 @@ namespace YoonseulFishing.Rendering
                 Color col = WithAlpha(q.Color, q.Alpha);
                 float r = q.BaseSize;
                 double a = q.Rotation * Mathf.Deg2Rad;
-                if (q.ShapeType == 0) // triangle
-                {
+                if (q.ShapeType == 0)
                     FillPoly(p, col, Pt(q.X, q.Y, r, a), Pt(q.X, q.Y, r, a + 2.0943951), Pt(q.X, q.Y, r, a + 4.1887902));
-                }
-                else if (q.ShapeType == 1) // diamond
-                {
+                else if (q.ShapeType == 1)
                     FillPoly(p, col, Pt(q.X, q.Y, r * 1.3f, a), Pt(q.X, q.Y, r * 0.7f, a + 1.5707963),
                         Pt(q.X, q.Y, r * 1.3f, a + 3.1415927), Pt(q.X, q.Y, r * 0.7f, a + 4.712389));
-                }
-                else // hexagon
+                else
                 {
                     p.fillColor = col;
                     p.BeginPath();
@@ -501,51 +343,30 @@ namespace YoonseulFishing.Rendering
             }
         }
 
-        private static Vector2 Pt(float cx, float cy, float r, double ang)
-            => new Vector2(cx + r * (float)Math.Cos(ang), cy + r * (float)Math.Sin(ang));
+        // ------------------------------------------------------------------
+        //  Weather + atmosphere + rhythm
+        // ------------------------------------------------------------------
 
-        // Reeling mini-game: a contracting ring the player taps when it overlaps the
-        // sweet-spot band (GameController's PERFECT window is scale 0.23–0.43).
-        private static void DrawRhythmRing(Painter2D p, FishingState state, float scale, bool active,
-            float bobberX, float bobberY, float w, float h)
-        {
-            if (state != FishingState.Reeling || !active) return;
-
-            float cx = bobberX * w;
-            float cy = bobberY * h - 40f; // a little above the bobber
-            const float maxR = 56f;
-
-            // Sweet-spot target band (faint).
-            StrokeCircleFull(p, cx, cy, maxR * 0.23f, new Color(1f, 1f, 1f, 0.35f), 2f);
-            StrokeCircleFull(p, cx, cy, maxR * 0.43f, new Color(1f, 1f, 1f, 0.35f), 2f);
-
-            // Contracting ring (turns green inside the sweet spot).
-            bool inSweet = scale >= 0.23f && scale <= 0.43f;
-            Color col = inSweet ? new Color(0.55f, 1f, 0.7f, 0.95f) : new Color(1f, 1f, 1f, 0.85f);
-            StrokeCircleFull(p, cx, cy, maxR * Mathf.Clamp01(scale), col, 3.5f);
-        }
-
-        private static void StrokeCircleFull(Painter2D p, float cx, float cy, float r, Color color, float width)
-        {
-            p.strokeColor = color;
-            p.lineWidth = width;
-            p.BeginPath();
-            p.Arc(new Vector2(cx, cy), r, new Angle(0f, AngleUnit.Degree), new Angle(360f, AngleUnit.Degree));
-            p.Stroke();
-        }
-
-        private static void DrawWindStrokes(Painter2D p, WindStroke[] strokes, float w, float h)
+        private static void DrawWindRipples(Painter2D p, WindStroke[] strokes, float w, float h)
         {
             if (strokes == null) return;
-            p.lineCap = LineCap.Round;
             for (int i = 0; i < strokes.Length; i++)
             {
                 WindStroke ws = strokes[i];
                 float sx = ws.X * w, sy = ws.Y * h;
-                StrokeLine(p, new Vector2(sx, sy), new Vector2(sx + ws.Length, sy + ws.Length * 0.05f),
-                    White(ws.Opacity), ws.Width);
+                StrokeLine(p, new Vector2(sx, sy), new Vector2(sx + ws.Length, sy + ws.Length * 0.04f), White(ws.Opacity * 0.6f), ws.Width);
             }
-            p.lineCap = LineCap.Butt;
+        }
+
+        private static void DrawMistPatches(Painter2D p, long ticks, float w, float h)
+        {
+            float t = ticks * 0.0004f;
+            for (int i = 0; i < 4; i++)
+            {
+                float x = ((0.2f + 0.25f * i + t) % 1.2f - 0.1f) * w;
+                float y = (0.25f + 0.18f * i) * h;
+                FillEllipse(p, new Vector2(x, y), 150f, 46f, new Color(1f, 1f, 1f, 0.07f), 24);
+            }
         }
 
         private static void DrawRainStrokes(Painter2D p, RainStroke[] strokes, float w, float h)
@@ -560,51 +381,76 @@ namespace YoonseulFishing.Rendering
             }
         }
 
-        private static void DrawAtmosphere(Painter2D p, AtmMote[] motes, long ticks, TimeOfDay time, Color accent, Weather weather, float w, float h)
+        private static void DrawMotes(Painter2D p, AtmMote[] motes, long ticks, TimeOfDay time, Weather weather, float w, float h)
         {
+            if (motes == null) return;
             float t = ticks * 0.001f;
-            Color moteColor = time == TimeOfDay.Day ? Rgb(0xFFF6DF)
-                            : time == TimeOfDay.Sunset ? Rgb(0xFFE1B0)
-                            : Rgb(0xCBDDFF);
-            float weatherDamp = weather == Weather.Rain ? 0.6f : 1f;
-
-            // A. Soft light bloom from the sky (accent fading out over the top 45%).
-            FillVerticalAlphaFade(p, new Rect(0, 0, w, h * 0.45f), accent, 0.10f, 0f, 16);
-
-            // B. Horizon depth haze (peaks at the waterline, fades both ways).
-            FillHorizonHaze(p, w, h * 0.5f, h * 0.12f, accent, 0.13f, 16);
-
-            // C. Bokeh light motes — gentle upward drift + sway + twinkle.
-            if (motes != null)
+            Color mc = time == TimeOfDay.Day ? Rgb(0xFFF6DF) : time == TimeOfDay.Sunset ? Rgb(0xFFE1B0) : Rgb(0xCBDDFF);
+            float damp = weather == Weather.Rain ? 0.6f : 1f;
+            for (int i = 0; i < motes.Length; i++)
             {
-                for (int i = 0; i < motes.Length; i++)
-                {
-                    AtmMote m = motes[i];
-                    float y = (((m.BaseY - t * m.DriftSpeed) % 1f) + 1f) % 1f;
-                    float sway = Mathf.Sin(t * (0.4f + m.Depth) + m.Phase) * m.SwayAmp;
-                    float cx = ((((m.RelX + sway) % 1f) + 1f) % 1f) * w;
-                    float cy = y * h;
-                    float twinkle = 0.55f + 0.45f * Mathf.Sin(t * 1.2f + m.Phase * 1.7f);
-                    float a = (0.05f + 0.11f * m.Depth) * twinkle * weatherDamp;
-                    float r = m.Radius * (0.7f + 0.6f * m.Depth);
-                    FillCircle(p, new Vector2(cx, cy), r, WithAlpha(moteColor, a));
-                }
+                AtmMote m = motes[i];
+                float y = (((m.BaseY - t * m.DriftSpeed) % 1f) + 1f) % 1f;
+                float sway = Mathf.Sin(t * (0.4f + m.Depth) + m.Phase) * m.SwayAmp;
+                float cx = ((((m.RelX + sway) % 1f) + 1f) % 1f) * w;
+                float twinkle = 0.55f + 0.45f * Mathf.Sin(t * 1.2f + m.Phase * 1.7f);
+                float a = (0.05f + 0.10f * m.Depth) * twinkle * damp;
+                FillCircle(p, new Vector2(cx, y * h), m.Radius * (0.7f + 0.6f * m.Depth), WithAlpha(mc, a));
             }
         }
 
-        private static Color AccentFor(TimeOfDay t) =>
-            t == TimeOfDay.Day ? Rgb(0xE2F3F0) : t == TimeOfDay.Sunset ? Rgb(0xFFD1B3) : Rgb(0xD3E2F2);
+        private static void DrawRhythmRing(Painter2D p, FishingState state, float scale, bool active,
+            float bobberX, float bobberY, float w, float h)
+        {
+            if (state != FishingState.Reeling || !active) return;
+            float cx = bobberX * w, cy = bobberY * h - 40f;
+            const float maxR = 56f;
+            StrokeCircleFull(p, cx, cy, maxR * 0.23f, new Color(1f, 1f, 1f, 0.35f), 2f);
+            StrokeCircleFull(p, cx, cy, maxR * 0.43f, new Color(1f, 1f, 1f, 0.35f), 2f);
+            bool inSweet = scale >= 0.23f && scale <= 0.43f;
+            Color col = inSweet ? new Color(0.55f, 1f, 0.7f, 0.95f) : new Color(1f, 1f, 1f, 0.85f);
+            StrokeCircleFull(p, cx, cy, maxR * Mathf.Clamp01(scale), col, 3.5f);
+        }
 
         // ------------------------------------------------------------------
-        //  Painter2D helpers
+        //  Painter2D primitives
         // ------------------------------------------------------------------
 
-        private static void FillCircle(Painter2D p, Vector2 center, float radius, Color color)
+        private static void FillCircle(Painter2D p, Vector2 c, float r, Color color)
         {
             p.fillColor = color;
             p.BeginPath();
-            p.Arc(center, radius, new Angle(0f, AngleUnit.Degree), new Angle(360f, AngleUnit.Degree));
+            p.Arc(c, r, new Angle(0f, AngleUnit.Degree), new Angle(360f, AngleUnit.Degree));
             p.Fill();
+        }
+
+        private static void FillEllipse(Painter2D p, Vector2 c, float rx, float ry, Color color, int segments = 16)
+        {
+            p.fillColor = color;
+            p.BeginPath();
+            for (int i = 0; i < segments; i++)
+            {
+                double a = i * 2.0 * Math.PI / segments;
+                Vector2 pt = new Vector2(c.x + rx * (float)Math.Cos(a), c.y + ry * (float)Math.Sin(a));
+                if (i == 0) p.MoveTo(pt); else p.LineTo(pt);
+            }
+            p.ClosePath();
+            p.Fill();
+        }
+
+        private static void StrokeCircleEllipse(Painter2D p, float cx, float cy, float rx, float ry, Color color, float width, int segments = 18)
+        {
+            p.strokeColor = color;
+            p.lineWidth = width;
+            p.BeginPath();
+            for (int i = 0; i < segments; i++)
+            {
+                double a = i * 2.0 * Math.PI / segments;
+                Vector2 pt = new Vector2(cx + rx * (float)Math.Cos(a), cy + ry * (float)Math.Sin(a));
+                if (i == 0) p.MoveTo(pt); else p.LineTo(pt);
+            }
+            p.ClosePath();
+            p.Stroke();
         }
 
         private static void FillPoly(Painter2D p, Color color, params Vector2[] pts)
@@ -635,71 +481,43 @@ namespace YoonseulFishing.Rendering
             p.Stroke();
         }
 
-        private static void FillEllipse(Painter2D p, Vector2 c, float rx, float ry, Color color, int segments = 16)
+        private static void StrokeRipple(Painter2D p, Vector2 center, float radius, Color color, float strokeWidth, int segments)
         {
-            p.fillColor = color;
+            p.strokeColor = color;
+            p.lineWidth = strokeWidth;
             p.BeginPath();
             for (int i = 0; i < segments; i++)
             {
-                double a = i * 2.0 * Math.PI / segments;
-                var pt = new Vector2(c.x + rx * (float)Math.Cos(a), c.y + ry * (float)Math.Sin(a));
-                if (i == 0) p.MoveTo(pt); else p.LineTo(pt);
+                double ang = i * 2.0 * Math.PI / segments;
+                float x = center.x + radius * (float)Math.Cos(ang);
+                float y = center.y + (radius * 0.55f) * (float)Math.Sin(ang); // gentle top-down flatten
+                if (i == 0) p.MoveTo(new Vector2(x, y)); else p.LineTo(new Vector2(x, y));
             }
             p.ClosePath();
-            p.Fill();
+            p.Stroke();
         }
 
-        /// <summary>Approximates a vertical 3-stop gradient with <paramref name="bands"/> solid strips.</summary>
-        private static void FillVerticalGradient(Painter2D p, Rect area, Color top, Color mid, Color bottom, int bands)
+        private static void StrokeCircleFull(Painter2D p, float cx, float cy, float r, Color color, float width)
         {
-            for (int i = 0; i < bands; i++)
-            {
-                float f = (i + 0.5f) / bands;
-                Color c = f < 0.5f ? LerpColor(top, mid, f / 0.5f) : LerpColor(mid, bottom, (f - 0.5f) / 0.5f);
-                float y0 = area.yMin + area.height * (i / (float)bands);
-                float y1 = area.yMin + area.height * ((i + 1) / (float)bands);
-                FillRect(p, Rect.MinMaxRect(area.xMin, y0, area.xMax, y1), c);
-            }
+            p.strokeColor = color;
+            p.lineWidth = width;
+            p.BeginPath();
+            p.Arc(new Vector2(cx, cy), r, new Angle(0f, AngleUnit.Degree), new Angle(360f, AngleUnit.Degree));
+            p.Stroke();
         }
 
-        /// <summary>Bands of one colour whose alpha fades from <paramref name="aTop"/> to <paramref name="aBottom"/>.</summary>
-        private static void FillVerticalAlphaFade(Painter2D p, Rect area, Color color, float aTop, float aBottom, int bands)
-        {
-            for (int i = 0; i < bands; i++)
-            {
-                float f = (i + 0.5f) / bands;
-                float a = Mathf.Lerp(aTop, aBottom, f);
-                float y0 = area.yMin + area.height * (i / (float)bands);
-                float y1 = area.yMin + area.height * ((i + 1) / (float)bands);
-                FillRect(p, Rect.MinMaxRect(area.xMin, y0, area.xMax, y1), WithAlpha(color, a));
-            }
-        }
+        private static Vector2 Pt(float cx, float cy, float r, double ang)
+            => new Vector2(cx + r * (float)Math.Cos(ang), cy + r * (float)Math.Sin(ang));
 
-        /// <summary>A haze band centred on <paramref name="centerY"/> whose alpha peaks in the middle and fades to 0 at the edges.</summary>
-        private static void FillHorizonHaze(Painter2D p, float w, float centerY, float band, Color color, float peakAlpha, int bands)
-        {
-            float top = centerY - band;
-            float total = band * 2f;
-            for (int i = 0; i < bands; i++)
-            {
-                float f = (i + 0.5f) / bands;
-                float tri = 1f - Mathf.Abs(f - 0.5f) * 2f; // triangular falloff
-                float y0 = top + total * (i / (float)bands);
-                float y1 = top + total * ((i + 1) / (float)bands);
-                FillRect(p, Rect.MinMaxRect(0f, y0, w, y1), WithAlpha(color, peakAlpha * tri));
-            }
-        }
-
-        private static Color LerpColor(Color a, Color b, float t) => Color.Lerp(a, b, Mathf.Clamp01(t));
         private static Color WithAlpha(Color c, float a) { c.a = a; return c; }
         private static Color White(float a) => new Color(1f, 1f, 1f, a);
 
-        private static Color Rgb(uint rgb, float alpha = 1f)
+        private static Color Rgb(uint rgb)
         {
             byte r = (byte)((rgb >> 16) & 0xFF);
             byte g = (byte)((rgb >> 8) & 0xFF);
             byte b = (byte)(rgb & 0xFF);
-            return new Color(r / 255f, g / 255f, b / 255f, alpha);
+            return new Color(r / 255f, g / 255f, b / 255f, 1f);
         }
     }
 }

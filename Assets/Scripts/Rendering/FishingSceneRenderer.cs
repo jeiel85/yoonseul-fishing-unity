@@ -207,7 +207,7 @@ namespace YoonseulFishing.Rendering
                 _sparkles[i] = new ScenePainter.Sparkle
                 {
                     RelX = Random.value,
-                    RelY = 0.55f + Random.value * 0.4f,         // on the water band
+                    RelY = 0.05f + Random.value * 0.9f,         // across the whole top-down pond
                     ScaleFactor = 0.6f + Random.value * 0.8f,
                     Phase = Random.value * 6.28318f,
                 };
