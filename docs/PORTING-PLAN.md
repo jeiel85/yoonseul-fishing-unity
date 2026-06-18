@@ -103,8 +103,11 @@ Canvas 코드를 거의 직역할 수 있다. (대안: 스프라이트/파티클
       육안 검증 필요 — PanelSettings 1회 셋업 후 Play.
 - [ ] **Phase 5 — UI**: 상점(미끼)·도감·퀘스트·업적·결과 카드 다이얼로그를
       UI Toolkit 으로.
-- [ ] **Phase 6 — 입력·통합**: 탭 리듬(찌 가라앉을 때 탭 → 좁혀지는 도넛 링
-      타이밍). 부트스트랩 씬에서 전체 와이어링.
+- [~] **Phase 6 — 입력·통합** *(진행 중)*: `Game/GameBootstrap.cs` — GameState +
+      SaveService(load) + GameController + ProceduralAudio + FishingSceneRenderer +
+      탭 입력(마우스/터치 → `HandleScreenTap`) 와이어링, 상태 observable → 렌더러 구독,
+      SPLASHING 진행 구동, 종료 시 저장 + Dispose. **남은 것**: 에디터 씬 셋업
+      (PanelSettings·UIDocument·컴포넌트) + Play 통합 검증, 리듬 링 비주얼(REELING) 추가.
 - [ ] **Phase 7 — 빌드**: Android(재출시용 패키지명·서명) + Windows 빌드 세팅,
       플레이테스트. *(에디터 GUI — 사수 협업)*
 - [ ] **Phase 8 — 스토어 재출시**: 기존 워크플로(`Desktop\Build\`, 릴리스 노트).
