@@ -51,6 +51,7 @@ namespace YoonseulFishing.Rendering
         private Rect _lastRect;
         private FishingState _prevState = FishingState.Idle;
         private float _startTime;
+        private float _zoom = 1f;
 
         /// <summary>Set by the bootstrap (Phase 6) from the time-of-day observable.</summary>
         public void SetTimeOfDay(TimeOfDay time) => previewTime = time;
@@ -80,6 +81,9 @@ namespace YoonseulFishing.Rendering
 
             _scene = new VisualElement { name = "fishing-scene" };
             _scene.style.flexGrow = 1; // fill the panel
+            _scene.style.backgroundColor = new Color(0.10f, 0.15f, 0.18f, 1f); // frame shown when zoomed out
+            _scene.style.transformOrigin = new TransformOrigin(Length.Percent(50f), Length.Percent(56f), 0f);
+            _scene.transform.scale = new Vector3(_zoom, _zoom, 1f);
             _scene.generateVisualContent += OnGenerateVisualContent;
             root.Add(_scene);
 
@@ -96,9 +100,31 @@ namespace YoonseulFishing.Rendering
 
         private void Update()
         {
+            ApplyZoom();
             AdvanceWeather();
             UpdateSplashParticles();
             _scene?.MarkDirtyRepaint(); // re-issue draw each frame to animate
+        }
+
+        // Pinch (mobile) / scroll-wheel (desktop) zoom around the boat, clamped.
+        private void ApplyZoom()
+        {
+            float prev = _zoom;
+
+            float scroll = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(scroll) > 0.01f) _zoom *= 1f + scroll * 0.08f;
+
+            if (Input.touchCount == 2)
+            {
+                Touch a = Input.GetTouch(0), b = Input.GetTouch(1);
+                float cur = (a.position - b.position).magnitude;
+                float prevDist = ((a.position - a.deltaPosition) - (b.position - b.deltaPosition)).magnitude;
+                if (prevDist > 0.01f) _zoom *= cur / prevDist;
+            }
+
+            _zoom = Mathf.Clamp(_zoom, 0.85f, 2.6f);
+            if (_scene != null && !Mathf.Approximately(prev, _zoom))
+                _scene.transform.scale = new Vector3(_zoom, _zoom, 1f);
         }
 
         private void UpdateSplashParticles()

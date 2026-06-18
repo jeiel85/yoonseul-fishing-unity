@@ -243,40 +243,59 @@ namespace YoonseulFishing.Rendering
             float w, float h, Palette pal, Weather weather)
         {
             float bx = w * 0.50f;
-            float by = h * 0.72f + Mathf.Sin(ticks * 0.0018f) * 4f;
+            float by = h * 0.70f + Mathf.Sin(ticks * 0.0018f) * 4f;
 
             // Shadow.
-            FillEllipse(p, new Vector2(bx, by + 26f), 78f, 18f, new Color(0f, 0f, 0f, 0.13f));
+            FillEllipse(p, new Vector2(bx, by + 42f), 94f, 20f, new Color(0f, 0f, 0f, 0.13f));
 
-            // Hull (foreshortened, bow points away toward the horizon).
-            FillPoly(p, Rgb(0xA9743C), new Vector2(bx, by - 14f), new Vector2(bx - 24f, by + 14f), new Vector2(bx + 24f, by + 14f));
-            FillEllipse(p, new Vector2(bx, by + 18f), 72f, 26f, Rgb(0xA9743C), 30);
-            StrokeCircleEllipse(p, bx, by + 18f, 72f, 26f, Rgb(0xD8B07E), 3.5f);
-            FillEllipse(p, new Vector2(bx, by + 20f), 58f, 18f, Rgb(0x5E3F23), 28);
-
-            // Fisherman from behind: back/torso → head → straw hat, with an arm on the rod.
-            // torso (white shirt), broader at shoulders.
-            p.fillColor = Rgb(0xF2F2EF);
+            // Canoe hull (vertical: pointed bow away/up, wider stern near) — bezier outline.
+            p.fillColor = Rgb(0xA9743C);
+            p.strokeColor = Rgb(0xD8B07E);
+            p.lineWidth = 3.5f;
             p.BeginPath();
-            p.MoveTo(new Vector2(bx - 17f, by + 14f));
-            p.LineTo(new Vector2(bx - 22f, by - 22f));
-            p.QuadraticCurveTo(new Vector2(bx, by - 40f), new Vector2(bx + 22f, by - 22f));
-            p.LineTo(new Vector2(bx + 17f, by + 14f));
+            p.MoveTo(new Vector2(bx, by + 46f));
+            p.BezierCurveTo(new Vector2(bx - 38f, by + 44f), new Vector2(bx - 60f, by + 14f), new Vector2(bx - 54f, by - 8f));
+            p.BezierCurveTo(new Vector2(bx - 48f, by - 34f), new Vector2(bx - 18f, by - 52f), new Vector2(bx, by - 54f));
+            p.BezierCurveTo(new Vector2(bx + 18f, by - 52f), new Vector2(bx + 48f, by - 34f), new Vector2(bx + 54f, by - 8f));
+            p.BezierCurveTo(new Vector2(bx + 60f, by + 14f), new Vector2(bx + 38f, by + 44f), new Vector2(bx, by + 46f));
             p.ClosePath();
             p.Fill();
-            // head (back, mostly under the hat)
-            FillEllipse(p, new Vector2(bx, by - 36f), 13f, 14f, Rgb(0xEBC19F));
-            // straw hat
-            FillEllipse(p, new Vector2(bx, by - 40f), 30f, 13f, Rgb(0xE3C788));
-            FillEllipse(p, new Vector2(bx, by - 48f), 17f, 12f, Rgb(0xD4B26E));
-            FillPoly(p, Rgb(0x2A2A2A), new Vector2(bx - 16f, by - 44f), new Vector2(bx + 16f, by - 44f), new Vector2(bx + 15f, by - 47f), new Vector2(bx - 15f, by - 47f));
+            p.Stroke();
 
-            // Right arm to the rod (upper arm shirt + forearm skin).
-            Vector2 shoulder = new Vector2(bx + 20f, by - 20f);
-            Vector2 elbow = new Vector2(bx + 40f, by - 8f);
-            Vector2 hand = new Vector2(bx + 52f, by - 18f);
-            StrokeLine(p, shoulder, elbow, Rgb(0xF2F2EF), 8f);
-            StrokeLine(p, elbow, hand, Rgb(0xEBC19F), 6.5f);
+            // Inner cavity (we look into the boat).
+            p.fillColor = Rgb(0x5E3F23);
+            p.BeginPath();
+            p.MoveTo(new Vector2(bx, by + 34f));
+            p.BezierCurveTo(new Vector2(bx - 27f, by + 32f), new Vector2(bx - 43f, by + 10f), new Vector2(bx - 39f, by - 7f));
+            p.BezierCurveTo(new Vector2(bx - 34f, by - 28f), new Vector2(bx - 13f, by - 41f), new Vector2(bx, by - 43f));
+            p.BezierCurveTo(new Vector2(bx + 13f, by - 41f), new Vector2(bx + 34f, by - 28f), new Vector2(bx + 39f, by - 7f));
+            p.BezierCurveTo(new Vector2(bx + 43f, by + 10f), new Vector2(bx + 27f, by + 32f), new Vector2(bx, by + 34f));
+            p.ClosePath();
+            p.Fill();
+
+            // Seat plank.
+            FillPoly(p, Rgb(0xC9985A), new Vector2(bx - 36f, by - 6f), new Vector2(bx + 36f, by - 6f), new Vector2(bx + 34f, by + 4f), new Vector2(bx - 34f, by + 4f));
+
+            // Fisherman from behind: shoulder-tapered torso → head → straw hat, arm on the rod.
+            p.fillColor = Rgb(0xF2F2EF);
+            p.BeginPath();
+            p.MoveTo(new Vector2(bx - 23f, by + 2f));
+            p.LineTo(new Vector2(bx - 29f, by - 34f));
+            p.QuadraticCurveTo(new Vector2(bx, by - 56f), new Vector2(bx + 29f, by - 34f));
+            p.LineTo(new Vector2(bx + 23f, by + 2f));
+            p.ClosePath();
+            p.Fill();
+            FillEllipse(p, new Vector2(bx, by - 48f), 15f, 16f, Rgb(0xEBC19F));   // head
+            FillEllipse(p, new Vector2(bx, by - 52f), 34f, 15f, Rgb(0xE3C788));   // hat brim
+            FillEllipse(p, new Vector2(bx, by - 62f), 19f, 13f, Rgb(0xD4B26E));   // hat crown
+            FillPoly(p, Rgb(0x2A2A2A), new Vector2(bx - 18f, by - 56f), new Vector2(bx + 18f, by - 56f), new Vector2(bx + 17f, by - 60f), new Vector2(bx - 17f, by - 60f)); // band
+
+            // Right arm to the rod.
+            Vector2 shoulder = new Vector2(bx + 27f, by - 30f);
+            Vector2 elbow = new Vector2(bx + 50f, by - 12f);
+            Vector2 hand = new Vector2(bx + 64f, by - 26f);
+            StrokeLine(p, shoulder, elbow, Rgb(0xF2F2EF), 9f);
+            StrokeLine(p, elbow, hand, Rgb(0xEBC19F), 7f);
 
             // Rod aimed at the bobber.
             float bobx = bobberX * w, boby = bobberY * h;

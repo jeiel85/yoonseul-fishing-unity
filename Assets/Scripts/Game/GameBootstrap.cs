@@ -102,6 +102,8 @@ namespace YoonseulFishing.Game
         // Mouse (PC) or first touch (mobile) → a single tap dispatched to the controller.
         private void HandleTapInput()
         {
+            if (Input.touchCount >= 2) return; // pinch-zoom, not a cast
+
             bool tapped = Input.GetMouseButtonDown(0);
             Vector2 pos = Input.mousePosition;
 
