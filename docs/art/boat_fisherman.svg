@@ -1,0 +1,32 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Approved boat + back-view fisherman (cozy flat/pastel). Transparent background;
+    the water shadow + fishing line + bobber + ripples are drawn procedurally in
+    ScenePainter, not baked here. Rod tip is at (256,114). Boat/figure centred ~ (160,196).
+    NEXT: import via Unity Vector Graphics package (com.unity.vectorgraphics) as a
+    vector sprite, overlay on the scene at the boat anchor, scale with zoom, bob.
+    Tilt/rotation (the ~45° angle) is applied at placement, not baked here.
+  -->
+  <path d="M160,126 C120,138 98,172 102,204 L112,252 C110,268 210,268 208,252 L218,204 C222,172 200,138 160,126 Z" fill="#A9743C"/>
+  <path d="M160,148 C128,156 112,184 116,208 L124,246 C122,258 198,258 196,246 L204,208 C208,184 192,156 160,148 Z" fill="#C29257"/>
+  <path d="M104,224 Q160,216 216,224" fill="none" stroke="#7E5026" stroke-width="2.5" opacity="0.45" stroke-linecap="round"/>
+  <path d="M108,242 Q160,235 212,242" fill="none" stroke="#7E5026" stroke-width="2.5" opacity="0.4" stroke-linecap="round"/>
+  <path d="M124,188 L196,188 L192,198 L128,198 Z" fill="#B8824A"/>
+  <path d="M124,188 L196,188 L195,191 L125,191 Z" fill="#C99A5C"/>
+  <path d="M134,232 L128,190 Q160,168 192,190 L186,232 Z" fill="#F6F4EF"/>
+  <path d="M134,232 L128,190 Q145,176 160,174 L160,232 Z" fill="#E2DDD2" opacity="0.55"/>
+  <path d="M160,180 L160,230" fill="none" stroke="#D6D0C4" stroke-width="2.5" opacity="0.55"/>
+  <path d="M132,193 L121,214" fill="none" stroke="#F6F4EF" stroke-width="16" stroke-linecap="round"/>
+  <path d="M188,193 L199,214" fill="none" stroke="#F6F4EF" stroke-width="16" stroke-linecap="round"/>
+  <ellipse cx="160" cy="170" rx="16" ry="17" fill="#E9C09B"/>
+  <ellipse cx="160" cy="167" rx="48" ry="18" fill="#D2B473"/>
+  <ellipse cx="160" cy="163" rx="48" ry="18" fill="#EAD097"/>
+  <ellipse cx="160" cy="157" rx="25" ry="9" fill="#36312A"/>
+  <ellipse cx="160" cy="147" rx="26" ry="18" fill="#DCBE7C"/>
+  <ellipse cx="150" cy="141" rx="9" ry="6" fill="#EAD79C"/>
+  <path d="M160,126 C120,138 98,172 102,204 L112,252 C110,268 210,268 208,252 L218,204 C222,172 200,138 160,126 Z" fill="none" stroke="#C9985A" stroke-width="6"/>
+  <path d="M112,252 C110,268 210,268 208,252 L201,242 C196,250 124,250 119,242 Z" fill="#8A5A2C"/>
+  <circle cx="190" cy="188" r="4.5" fill="#8F7740"/>
+  <path d="M190,188 L256,114" fill="none" stroke="#B59A5E" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="256" cy="114" r="2.6" fill="#8F7740"/>
+</svg>
