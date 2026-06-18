@@ -31,6 +31,7 @@ namespace YoonseulFishing.Rendering
         [SerializeField] private FishingState previewFishingState = FishingState.Waiting;
         [Range(0f, 1f)] [SerializeField] private float bobberX = 0.5f;
         [Range(0f, 1f)] [SerializeField] private float bobberY = 0.7f;
+        [SerializeField] private string previewSpeciesId = "koi"; // leaps when state = Splashing
 
         [Header("Decor density")]
         [SerializeField] private int starCount = 70;
@@ -42,6 +43,8 @@ namespace YoonseulFishing.Rendering
         private ScenePainter.AtmMote[] _motes;
         private ScenePainter.WindStroke[] _windStrokes;
         private ScenePainter.RainStroke[] _rainStrokes;
+        private FishSpecies _splashFish;
+        private float _splashProgress;
         private float _startTime;
 
         /// <summary>Set by the bootstrap (Phase 6) from the time-of-day observable.</summary>
@@ -55,6 +58,9 @@ namespace YoonseulFishing.Rendering
 
         /// <summary>Set by the bootstrap (Phase 6) from the bobber-position observables (0..1).</summary>
         public void SetBobber(float x, float y) { bobberX = x; bobberY = y; }
+
+        /// <summary>Set by the bootstrap (Phase 6) for the SPLASHING leap (species + 0..1 progress).</summary>
+        public void SetSplash(FishSpecies fish, float progress) { _splashFish = fish; _splashProgress = progress; }
 
         private void OnEnable()
         {
@@ -117,8 +123,14 @@ namespace YoonseulFishing.Rendering
         {
             Rect rect = _scene.contentRect;
             long ticks = (long)((Time.time - _startTime) * 1000f);
+
+            // Splash leap — driven by the bootstrap if set, else looped from the preview species.
+            FishSpecies splashFish = _splashFish != null ? _splashFish : FishSpecies.Find(previewSpeciesId);
+            float splashProgress = _splashFish != null ? _splashProgress
+                : (previewFishingState == FishingState.Splashing ? (Time.time % 2.2f) / 2.2f : 0f);
+
             ScenePainter.DrawScene(ctx.painter2D, rect, ticks, previewTime, previewWeather,
-                previewFishingState, bobberX, bobberY, _stars, _sparkles,
+                previewFishingState, bobberX, bobberY, splashFish, splashProgress, _stars, _sparkles,
                 _windStrokes, _rainStrokes, _motes);
         }
 

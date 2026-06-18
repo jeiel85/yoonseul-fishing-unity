@@ -73,8 +73,8 @@ namespace YoonseulFishing.Rendering
         /// <paramref name="ticks"/> is elapsed milliseconds (drives animation).
         /// </summary>
         public static void DrawScene(Painter2D p, Rect rect, long ticks, TimeOfDay time, Weather weather,
-            FishingState fishingState, float bobberX, float bobberY, Star[] stars, Sparkle[] sparkles,
-            WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes)
+            FishingState fishingState, float bobberX, float bobberY, FishSpecies splashFish, float splashProgress,
+            Star[] stars, Sparkle[] sparkles, WindStroke[] windStrokes, RainStroke[] rainStrokes, AtmMote[] motes)
         {
             float w = rect.width;
             float h = rect.height;
@@ -109,6 +109,16 @@ namespace YoonseulFishing.Rendering
 
             // 8. Wooden boat + fisherman (+ cast line once fishing).
             DrawBoatAndFisherman(p, ticks, fishingState, bobberX, bobberY, w, h);
+
+            // 8b. Leaping fish during the SPLASHING moment (parabolic arc + flip past apex).
+            if (fishingState == FishingState.Splashing && splashFish != null)
+            {
+                float fishX = bobberX * w + (splashProgress - 0.5f) * 200f;
+                float arcH = 220f * Mathf.Sin(splashProgress * Mathf.PI);
+                float fishY = bobberY * h - arcH;
+                float rot = -50f + splashProgress * 100f + Mathf.Sin(ticks * 0.04f) * 15f;
+                DrawJumpingFish(p, splashFish, ticks, fishX, fishY, rot, splashProgress > 0.5f);
+            }
 
             // 9. Falling rain streaks.
             if (weather == Weather.Rain) DrawRainStrokes(p, rainStrokes, w, h);
@@ -418,6 +428,35 @@ namespace YoonseulFishing.Rendering
             }
 
             p.lineCap = LineCap.Butt;
+        }
+
+        // Low-poly fish in mid-leap. The Compose caller wrapped this in
+        // withTransform(translate, scale 1.2, rotate, mirror-past-apex); here Tf bakes
+        // that mapping into each local vertex (mirror → rotate → scale 1.2 → translate).
+        private static void DrawJumpingFish(Painter2D p, FishSpecies fish, long ticks,
+            float worldX, float worldY, float rotDeg, bool mirror)
+        {
+            float rad = rotDeg * Mathf.Deg2Rad;
+            float cs = Mathf.Cos(rad), sn = Mathf.Sin(rad);
+
+            Vector2 Tf(float lx, float ly)
+            {
+                if (mirror) ly = -ly;
+                float rx = (lx * cs - ly * sn) * 1.2f;
+                float ry = (lx * sn + ly * cs) * 1.2f;
+                return new Vector2(worldX + rx, worldY + ry);
+            }
+
+            float tail = Mathf.Sin(ticks * 0.012f) * 16f; // tail wag
+            Color body = fish.Color;
+            Color belly = new Color(body.r * 0.82f, body.g * 0.82f, body.b * 0.82f, 1f);
+
+            FillPoly(p, WithAlpha(body, 0.95f), Tf(-45, 0), Tf(-10, -18), Tf(30, -5), Tf(45, -2), Tf(0, 2)); // upper body
+            FillPoly(p, belly, Tf(-45, 0), Tf(-12, 16), Tf(28, 6), Tf(45, -2), Tf(0, 2));                    // belly shade
+            FillPoly(p, WithAlpha(body, 0.75f), Tf(45, -2), Tf(62, -16 + tail), Tf(54, -2 + tail * 0.4f), Tf(62, 12 + tail)); // tail fin
+            FillCircle(p, Tf(-30, -3), 3.5f * 1.2f, White(1f));            // eye white
+            FillCircle(p, Tf(-31, -3), 1.8f * 1.2f, new Color(0f, 0f, 0f, 1f)); // pupil
+            FillPoly(p, White(0.6f), Tf(-16, 3), Tf(-6, 12 + tail * 0.3f), Tf(-4, 5)); // pectoral fin
         }
 
         private static void DrawWindStrokes(Painter2D p, WindStroke[] strokes, float w, float h)
