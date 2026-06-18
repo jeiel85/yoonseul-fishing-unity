@@ -24,7 +24,7 @@ namespace YoonseulFishing.Rendering
     {
         public struct Palette
         {
-            public Color SkyTop, SkyBottom;
+            public Color SkyTop, SkyMid, SkyBottom;
             public Color Mtn1, Mtn2;
             public Color WaterFar, WaterNear;
             public Color ShoreSand, ShoreGrass, Reed, Lily;
@@ -39,29 +39,29 @@ namespace YoonseulFishing.Rendering
                 case TimeOfDay.Sunset:
                     return new Palette
                     {
-                        SkyTop = Rgb(0x514068), SkyBottom = Rgb(0xFCCC9B),
-                        Mtn1 = Rgb(0x704A6B), Mtn2 = Rgb(0x94618E),
-                        WaterFar = Rgb(0xD49A8C), WaterNear = Rgb(0x8A4E54),
+                        SkyTop = Rgb(0x352A4E), SkyMid = Rgb(0x9A5E6E), SkyBottom = Rgb(0xF4C193),
+                        Mtn1 = Rgb(0xC7A2A2), Mtn2 = Rgb(0x7E6478),
+                        WaterFar = Rgb(0xE0976A), WaterNear = Rgb(0x34405E),
                         ShoreSand = Rgb(0xB89663), ShoreGrass = Rgb(0x7A9A5C), Reed = Rgb(0x5A7A3C), Lily = Rgb(0x5A946A),
-                        LightTint = Rgb(0xFF9E5A), LightAlpha = 0.22f, Sparkle = Rgb(0xFFD9B0), Fish = Rgb(0x3A2630),
+                        LightTint = Rgb(0xFFE6BE), LightAlpha = 0.22f, Sparkle = Rgb(0xFFD9B0), Fish = Rgb(0x3A2630),
                     };
                 case TimeOfDay.Night:
                     return new Palette
                     {
-                        SkyTop = Rgb(0x0D1224), SkyBottom = Rgb(0x1B2342),
-                        Mtn1 = Rgb(0x19213D), Mtn2 = Rgb(0x222C52),
-                        WaterFar = Rgb(0x223A56), WaterNear = Rgb(0x13192F),
+                        SkyTop = Rgb(0x080C20), SkyMid = Rgb(0x1A2348), SkyBottom = Rgb(0x2E3A60),
+                        Mtn1 = Rgb(0x283454), Mtn2 = Rgb(0x161E3A),
+                        WaterFar = Rgb(0x2A3E5C), WaterNear = Rgb(0x111A2E),
                         ShoreSand = Rgb(0x595440), ShoreGrass = Rgb(0x3E5742), Reed = Rgb(0x36502E), Lily = Rgb(0x2F5A40),
-                        LightTint = Rgb(0xAFC4E0), LightAlpha = 0.16f, Sparkle = Rgb(0xCFE2FA), Fish = Rgb(0x0C2436),
+                        LightTint = Rgb(0xC6D6F0), LightAlpha = 0.16f, Sparkle = Rgb(0xCFE2FA), Fish = Rgb(0x0C2436),
                     };
                 default: // Day
                     return new Palette
                     {
-                        SkyTop = Rgb(0xBFE3E8), SkyBottom = Rgb(0xE6F2F4),
-                        Mtn1 = Rgb(0x85AFAF), Mtn2 = Rgb(0x9EBFBF),
-                        WaterFar = Rgb(0x86C2CC), WaterNear = Rgb(0x49929E),
+                        SkyTop = Rgb(0x6FA9C9), SkyMid = Rgb(0xA9D2DE), SkyBottom = Rgb(0xE9F4F1),
+                        Mtn1 = Rgb(0xB2C9CE), Mtn2 = Rgb(0x82A6AA),
+                        WaterFar = Rgb(0x8FC8CE), WaterNear = Rgb(0x3E808E),
                         ShoreSand = Rgb(0xCBB180), ShoreGrass = Rgb(0x8FB76A), Reed = Rgb(0x5E8B3E), Lily = Rgb(0x57A368),
-                        LightTint = Rgb(0xFFF1CE), LightAlpha = 0.16f, Sparkle = Rgb(0xFFFFFF), Fish = Rgb(0x1F4658),
+                        LightTint = Rgb(0xFFF3D6), LightAlpha = 0.18f, Sparkle = Rgb(0xFFFFFF), Fish = Rgb(0x1F4658),
                     };
             }
         }
@@ -84,18 +84,18 @@ namespace YoonseulFishing.Rendering
             if (w <= 1f || h <= 1f) return;
             Palette pal = PaletteFor(time);
             float hy = h * HorizonRel;
+            float sunX = w * 0.74f, sunY = hy * 0.46f;
 
-            // 1. Sky band + soft sun/moon glow.
-            FillVBands(p, new Rect(0, 0, w, hy), pal.SkyTop, pal.SkyBottom, 22);
-            FillCircle(p, new Vector2(w * 0.78f, hy * 0.42f), 110f, WithAlpha(pal.LightTint, pal.LightAlpha * 0.7f));
-            FillCircle(p, new Vector2(w * 0.78f, hy * 0.42f), 58f, WithAlpha(pal.LightTint, pal.LightAlpha * 1.7f));
+            // 1. Sky — smooth 3-stop gradient + layered sun/moon glow.
+            FillVBands3(p, new Rect(0, 0, w, hy), pal.SkyTop, pal.SkyMid, pal.SkyBottom, 40);
+            DrawSunGlow(p, sunX, sunY, pal.LightTint);
 
-            // 2. Distant low-poly mountains along the horizon.
+            // 2. Distant mountains with atmospheric haze.
             DrawMountains(p, pal.Mtn1, pal.Mtn2, w, hy);
 
-            // 3. Water plane (lighter far, darker near) + a horizon light streak.
-            FillVBands(p, new Rect(0, hy, w, h - hy), pal.WaterFar, pal.WaterNear, 26);
-            FillEllipse(p, new Vector2(w * 0.5f, hy + 6f), w * 0.30f, 9f, WithAlpha(pal.LightTint, pal.LightAlpha * 0.9f), 24);
+            // 3. Water — far-light to near-deep + the sun's reflection streak.
+            FillVBands(p, new Rect(0, hy, w, h - hy), pal.WaterFar, pal.WaterNear, 36);
+            DrawReflection(p, sunX, hy, h, pal.LightTint);
 
             // 4. Surface wind ripples.
             DrawWindRipples(p, windStrokes, w, h, hy);
@@ -134,6 +134,9 @@ namespace YoonseulFishing.Rendering
 
             // 14. Reeling rhythm ring.
             DrawRhythmRing(p, fishingState, rhythmScale, rhythmActive, bobberX, bobberY, w, h);
+
+            // 15. Cozy vignette frame.
+            DrawVignette(p, w, h);
         }
 
         // ------------------------------------------------------------------
@@ -477,6 +480,57 @@ namespace YoonseulFishing.Rendering
                 float y0 = area.yMin + area.height * (i / (float)bands);
                 float y1 = area.yMin + area.height * ((i + 1) / (float)bands);
                 FillPoly(p, c, new Vector2(area.xMin, y0), new Vector2(area.xMax, y0), new Vector2(area.xMax, y1), new Vector2(area.xMin, y1));
+            }
+        }
+
+        private static void FillVBands3(Painter2D p, Rect area, Color top, Color mid, Color bottom, int bands)
+        {
+            for (int i = 0; i < bands; i++)
+            {
+                float f = (i + 0.5f) / bands;
+                Color c = f < 0.5f ? Color.Lerp(top, mid, f / 0.5f) : Color.Lerp(mid, bottom, (f - 0.5f) / 0.5f);
+                float y0 = area.yMin + area.height * (i / (float)bands);
+                float y1 = area.yMin + area.height * ((i + 1) / (float)bands);
+                FillPoly(p, c, new Vector2(area.xMin, y0), new Vector2(area.xMax, y0), new Vector2(area.xMax, y1), new Vector2(area.xMin, y1));
+            }
+        }
+
+        // Layered translucent circles approximate a soft radial sun/moon glow.
+        private static void DrawSunGlow(Painter2D p, float cx, float cy, Color tint)
+        {
+            FillCircle(p, new Vector2(cx, cy), 155f, WithAlpha(tint, 0.06f));
+            FillCircle(p, new Vector2(cx, cy), 110f, WithAlpha(tint, 0.09f));
+            FillCircle(p, new Vector2(cx, cy), 70f, WithAlpha(tint, 0.16f));
+            FillCircle(p, new Vector2(cx, cy), 36f, WithAlpha(tint, 0.95f));
+        }
+
+        // The sun's shimmering reflection — a soft streak widening down the water.
+        private static void DrawReflection(Painter2D p, float cx, float hy, float h, Color tint)
+        {
+            FillPoly(p, WithAlpha(tint, 0.10f),
+                new Vector2(cx - 26f, hy), new Vector2(cx + 26f, hy), new Vector2(cx + 72f, h), new Vector2(cx - 72f, h));
+            FillPoly(p, WithAlpha(tint, 0.14f),
+                new Vector2(cx - 13f, hy), new Vector2(cx + 13f, hy), new Vector2(cx + 36f, h), new Vector2(cx - 36f, h));
+        }
+
+        // Soft edge darkening for a cozy, focused frame (band-approximated vignette).
+        private static void DrawVignette(Painter2D p, float w, float h)
+        {
+            const int bands = 9;
+            float dy = h * 0.16f, dx = w * 0.14f;
+            Color dark = new Color(0.05f, 0.04f, 0.09f, 1f);
+            for (int i = 0; i < bands; i++)
+            {
+                float f = i / (float)bands;
+                float a = 0.20f * (1f - f) * (1f - f);
+                float t0 = dy * (i / (float)bands), t1 = dy * ((i + 1) / (float)bands);
+                FillPoly(p, WithAlpha(dark, a), new Vector2(0, t0), new Vector2(w, t0), new Vector2(w, t1), new Vector2(0, t1));
+                float b0 = h - dy * ((i + 1) / (float)bands), b1 = h - dy * (i / (float)bands);
+                FillPoly(p, WithAlpha(dark, a), new Vector2(0, b0), new Vector2(w, b0), new Vector2(w, b1), new Vector2(0, b1));
+                float l0 = dx * (i / (float)bands), l1 = dx * ((i + 1) / (float)bands);
+                FillPoly(p, WithAlpha(dark, a), new Vector2(l0, 0), new Vector2(l1, 0), new Vector2(l1, h), new Vector2(l0, h));
+                float r0 = w - dx * ((i + 1) / (float)bands), r1 = w - dx * (i / (float)bands);
+                FillPoly(p, WithAlpha(dark, a), new Vector2(r0, 0), new Vector2(r1, 0), new Vector2(r1, h), new Vector2(r0, h));
             }
         }
 
